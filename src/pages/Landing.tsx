@@ -1,6 +1,7 @@
 import { ConversationButton } from "@/components/ConversationButton";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "@/contexts/SessionContext";
+import converselyBanner from "@/assets/conversely-banner-transparent.png";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -11,8 +12,11 @@ const Landing = () => {
       <div className="max-w-md w-full space-y-8 text-center">
         {/* Logo placeholder - will add actual logo */}
         <div className="mb-8">
-          <h1 className="text-5xl font-bold mb-2">Conversely</h1>
-          <div className="h-1 w-24 bg-primary mx-auto rounded-full" />
+          <img 
+            src={converselyBanner} 
+            alt="Conversely" 
+            className="max-w-[280px] w-full mx-auto"
+          />
         </div>
 
         <div className="space-y-4">

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession, verifyRoomParticipant } from '../_shared/validation.ts';
+import { validateSession, verifyRoomParticipant, checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +49,24 @@ Deno.serve(async (req) => {
     }
 
     console.log('Get room data request:', { session_id, room_id });
+
+    // Rate limiting: 60 requests per minute per session
+    const rateLimitKey = `get-room-data:${session_id}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 60, 60000); // 60 per minute
+
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for session:', session_id);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many room data requests',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: securityHeaders,
+          status: 429,
+        }
+      );
+    }
 
     // Validate session
     const sessionValidation = await validateSession(supabase, session_id);

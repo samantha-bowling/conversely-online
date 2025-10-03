@@ -43,13 +43,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Rate limiting: 3 sessions per IP per hour
+    // Rate limiting: 10 sessions per IP per hour
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 
                      req.headers.get('x-real-ip') || 
                      'unknown';
     
     const rateLimitKey = `create-session:${clientIp}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 3, 3600000); // 3 per hour
+    const rateLimit = checkRateLimit(rateLimitKey, 10, 3600000); // 10 per hour
 
     if (!rateLimit.allowed) {
       console.log('Rate limit exceeded for IP:', clientIp);

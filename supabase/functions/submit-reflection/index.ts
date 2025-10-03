@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
 
     console.log('Submit reflection request:', { session_id, room_id, rating: rating || 'none', hasFeedback: !!feedback });
 
-    // Rate limiting: 1 reflection per session per room
-    const rateLimitKey = `submit-reflection:${session_id}:${room_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 1, 86400000); // 1 per 24 hours per room
+    // Rate limiting: 5 reflections per hour per session
+    const rateLimitKey = `submit-reflection:${session_id}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 5, 3600000); // 5 per hour
 
     if (!rateLimit.allowed) {
       console.log('Rate limit exceeded - reflection already submitted');

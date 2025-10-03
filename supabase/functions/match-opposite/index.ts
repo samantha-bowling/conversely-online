@@ -57,9 +57,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate limiting: 5 match attempts per hour per session
+    // Rate limiting: 20 match attempts per 5 minutes per session
     const rateLimitKey = `match-opposite:${session_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 5, 3600000); // 5 per hour
+    const rateLimit = checkRateLimit(rateLimitKey, 20, 300000); // 20 per 5 min
 
     if (!rateLimit.allowed) {
       console.log('Rate limit exceeded for session:', session_id);

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession, verifyRoomParticipant } from '../_shared/validation.ts';
+import { validateSession, verifyRoomParticipant, checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +49,24 @@ Deno.serve(async (req) => {
     }
 
     console.log('End chat request:', { session_id, room_id });
+
+    // Rate limiting: 10 end-chat calls per 10 minutes per session
+    const rateLimitKey = `end-chat:${session_id}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 10, 600000); // 10 per 10 min
+
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for session:', session_id);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many end chat attempts',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: securityHeaders,
+          status: 429,
+        }
+      );
+    }
 
     // Validate session
     const sessionValidation = await validateSession(supabase, session_id);

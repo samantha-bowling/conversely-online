@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession } from '../_shared/validation.ts';
+import { validateSession, checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +38,25 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { session_id } = body;
+
+    // Rate limiting: 100 validation requests per minute per IP
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimitKey = `validate-session:${clientIp}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 100, 60000); // 100 per minute
+
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for IP:', clientIp);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many validation requests',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: securityHeaders,
+          status: 429,
+        }
+      );
+    }
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

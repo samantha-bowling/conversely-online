@@ -55,9 +55,9 @@ Deno.serve(async (req) => {
 
     console.log('Send message request:', { session_id, room_id, contentLength: content?.length });
 
-    // Rate limiting: 10 messages per minute per session
+    // Rate limiting: 30 messages per minute per session
     const rateLimitKey = `send-message:${session_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 10, 60000); // 10 per minute
+    const rateLimit = checkRateLimit(rateLimitKey, 30, 60000); // 30 per minute
 
     if (!rateLimit.allowed) {
       console.log('Rate limit exceeded for session:', session_id);

@@ -15,7 +15,7 @@ const Landing = () => {
           <img 
             src={converselyBanner} 
             alt="Conversely" 
-            className="max-w-[280px] w-full mx-auto"
+            className="max-w-[336px] w-full mx-auto"
           />
         </div>
 

@@ -1,8 +1,10 @@
 import { ConversationButton } from "@/components/ConversationButton";
 import { useNavigate } from "react-router-dom";
+import { useSession } from "@/contexts/SessionContext";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { session, loading } = useSession();
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
@@ -27,8 +29,9 @@ const Landing = () => {
           <ConversationButton
             variant="primary"
             onClick={() => navigate("/survey")}
+            disabled={loading || !session}
           >
-            Start a Conversation
+            {loading ? "Preparing..." : "Start a Conversation"}
           </ConversationButton>
         </div>
 

@@ -1,31 +1,47 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
+import { useSession } from "@/contexts/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const Matching = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const answers = location.state?.answers || {};
-  const [status, setStatus] = useState<"searching" | "found" | "not-found">("searching");
+  const { session } = useSession();
+  const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown">("searching");
+  const [waitSeconds, setWaitSeconds] = useState(0);
 
   useEffect(() => {
-    // Simulate matching logic
-    const timer = setTimeout(() => {
-      // For MVP, randomly show "found" or "not-found"
-      const hasMatch = Math.random() > 0.3;
-      setStatus(hasMatch ? "found" : "not-found");
-      
-      if (hasMatch) {
-        // Navigate to chat after brief delay
-        setTimeout(() => {
-          navigate("/chat", { state: { answers } });
-        }, 1500);
-      }
-    }, 2000);
+    const findMatch = async () => {
+      if (!session) return;
 
-    return () => clearTimeout(timer);
-  }, [navigate, answers]);
+      try {
+        const { data, error } = await supabase.functions.invoke('match-opposite', {
+          body: { session_id: session.id },
+        });
+
+        if (error) throw error;
+
+        if (data.status === 'cooldown') {
+          setStatus('cooldown');
+          setWaitSeconds(data.wait_seconds);
+        } else if (data.status === 'match_found') {
+          setStatus("found");
+          setTimeout(() => {
+            navigate("/chat", { state: { room_id: data.room_id } });
+          }, 1500);
+        } else {
+          setStatus("not-found");
+        }
+      } catch (error) {
+        console.error('Error finding match:', error);
+        setStatus("not-found");
+      }
+    };
+
+    const timeout = setTimeout(findMatch, 2000);
+    return () => clearTimeout(timeout);
+  }, [navigate, session]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
@@ -66,15 +82,36 @@ const Matching = () => {
           </>
         )}
 
-        {status === "not-found" && (
-          <>
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">No matches right now</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                We couldn't find someone with opposite views available at the moment. 
-                This happens during quiet times.
+        {status === "cooldown" && (
+          <div className="space-y-6 text-center">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">Please wait</h2>
+              <p className="text-muted-foreground">
+                You can try matching again in {waitSeconds} seconds.
               </p>
             </div>
+
+            <div className="pt-4">
+              <ConversationButton
+                variant="outline"
+                onClick={() => navigate("/")}
+              >
+                Back to Home
+              </ConversationButton>
+            </div>
+          </div>
+        )}
+
+        {status === "not-found" && (
+          <div className="space-y-6 text-center">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">No match found right now</h2>
+              <p className="text-muted-foreground">
+                We couldn't find someone with opposite views at the moment.
+                This happens when the pool is small.
+              </p>
+            </div>
+
             <div className="space-y-3 pt-4">
               <ConversationButton
                 variant="primary"
@@ -89,7 +126,7 @@ const Matching = () => {
                 Back to Home
               </ConversationButton>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

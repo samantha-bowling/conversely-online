@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { ConversationButton } from "@/components/ConversationButton";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { ConversationButton } from "@/components/ConversationButton";
+import { useSession } from "@/contexts/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft } from "lucide-react";
 
 // Survey questions with binary choices
@@ -34,8 +36,10 @@ const SURVEY_QUESTIONS = [
 
 const Survey = () => {
   const navigate = useNavigate();
+  const { session } = useSession();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   // Randomize 3-5 questions on mount
   const [questions] = useState(() => {
@@ -44,7 +48,7 @@ const Survey = () => {
     return shuffled.slice(0, count);
   });
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = async (answer: string) => {
     const questionId = questions[currentQuestion].id;
     const newAnswers = { ...answers, [questionId]: answer };
     setAnswers(newAnswers);
@@ -52,8 +56,26 @@ const Survey = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      // Survey complete - navigate to matching
-      navigate("/matching", { state: { answers: newAnswers } });
+      // Survey complete, save to database
+      setSubmitting(true);
+      try {
+        const answersArray = Object.entries(newAnswers).map(([question_id, answer]) => ({
+          session_id: session?.id,
+          question_id,
+          answer,
+        }));
+
+        const { error } = await supabase
+          .from('survey_answers')
+          .insert(answersArray);
+
+        if (error) throw error;
+
+        navigate("/matching");
+      } catch (error) {
+        console.error('Error saving survey answers:', error);
+        setSubmitting(false);
+      }
     }
   };
 
@@ -91,13 +113,14 @@ const Survey = () => {
 
         <div className="w-full space-y-4">
           {question.options.map((option) => (
-            <ConversationButton
-              key={option}
-              variant="outline"
-              onClick={() => handleAnswer(option)}
-            >
-              {option}
-            </ConversationButton>
+          <ConversationButton
+            key={option}
+            variant="outline"
+            onClick={() => handleAnswer(option)}
+            disabled={submitting}
+          >
+            {option}
+          </ConversationButton>
           ))}
         </div>
       </div>

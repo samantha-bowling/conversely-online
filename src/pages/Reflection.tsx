@@ -1,17 +1,41 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
+import { useSession } from "@/contexts/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Star } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 const Reflection = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { session } = useSession();
   const [rating, setRating] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const roomId = location.state?.room_id;
 
-  const handleSubmit = () => {
-    // In production, save reflection data
-    console.log({ rating, feedback });
+  const handleSubmit = async () => {
+    if (!session || !roomId) {
+      navigate("/");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      if (rating) {
+        await supabase.from('reflections').insert({
+          room_id: roomId,
+          session_id: session.id,
+          rating,
+          feedback: feedback.trim() || null,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving reflection:', error);
+    }
+
     navigate("/");
   };
 
@@ -66,8 +90,9 @@ const Reflection = () => {
           <ConversationButton
             variant="primary"
             onClick={handleSubmit}
+            disabled={submitting}
           >
-            {rating ? "Submit & Return Home" : "Skip"}
+            {submitting ? "Submitting..." : rating ? "Submit & Return Home" : "Skip"}
           </ConversationButton>
         </div>
 

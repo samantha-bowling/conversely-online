@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const securityHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
 const adjectives = [
   'Bright', 'Quiet', 'Swift', 'Gentle', 'Bold', 'Calm', 'Wise', 'Kind',
   'Brave', 'Clear', 'Deep', 'Free', 'Pure', 'True', 'Warm', 'Cool'
@@ -50,7 +59,7 @@ Deno.serve(async (req) => {
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 429,
         }
       );
@@ -79,16 +88,17 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify(session),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 200,
       }
     );
   } catch (error) {
     console.error('Error creating guest session:', error);
+    // Don't leak sensitive error details to client
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Failed to create session. Please try again.' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 500,
       }
     );

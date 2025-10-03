@@ -6,17 +6,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const securityHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
+const MAX_REQUEST_SIZE = 1024; // 1KB limit
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Check request size
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Request too large' }),
+        { headers: securityHeaders, status: 413 }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { session_id, room_id } = await req.json();
+    const body = await req.json();
+    const { session_id, room_id } = body;
+
+    // Validate UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!session_id || !uuidRegex.test(session_id) || !room_id || !uuidRegex.test(room_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { headers: securityHeaders, status: 400 }
+      );
+    }
 
     console.log('Block user request:', { session_id, room_id });
 
@@ -32,7 +62,7 @@ Deno.serve(async (req) => {
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 429,
         }
       );
@@ -45,7 +75,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: sessionValidation.error }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 401,
         }
       );
@@ -58,7 +88,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: roomValidation.error }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 403,
         }
       );
@@ -76,7 +106,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 404,
         }
       );
@@ -97,7 +127,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Failed to block user' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 500,
         }
       );
@@ -124,16 +154,16 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 200,
       }
     );
   } catch (error) {
     console.error('Error blocking user:', error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Failed to block user. Please try again.' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 500,
       }
     );

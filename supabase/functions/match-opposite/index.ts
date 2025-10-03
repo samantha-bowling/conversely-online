@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const securityHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
+const MAX_REQUEST_SIZE = 1024; // 1KB limit for request body
+
 const BLOCKED_PATTERNS = [
   /\b(fuck|shit|ass|bitch|damn)\b/i,
   /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
@@ -22,11 +33,29 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Check request size
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Request too large' }),
+        { headers: securityHeaders, status: 413 }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { session_id } = await req.json();
+    const body = await req.json();
+    const { session_id } = body;
+
+    // Validate session_id format (UUID)
+    if (!session_id || typeof session_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(session_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid session ID' }),
+        { headers: securityHeaders, status: 400 }
+      );
+    }
 
     // Rate limiting: 5 match attempts per hour per session
     const rateLimitKey = `match-opposite:${session_id}`;
@@ -41,7 +70,7 @@ Deno.serve(async (req) => {
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 429,
         }
       );
@@ -61,7 +90,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ status: 'cooldown', wait_seconds: waitSeconds }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 200,
         }
       );
@@ -87,7 +116,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ status: 'no_match' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 200,
         }
       );
@@ -143,7 +172,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ status: 'no_match' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 200,
         }
       );
@@ -185,16 +214,17 @@ Deno.serve(async (req) => {
         opposition_score: bestScore,
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 200,
       }
     );
   } catch (error) {
     console.error('Error in match-opposite:', error);
+    // Don't leak sensitive error details
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Failed to process match request. Please try again.' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 500,
       }
     );

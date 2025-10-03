@@ -10,17 +10,47 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const securityHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
+const MAX_REQUEST_SIZE = 2048; // 2KB limit for feedback
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Check request size
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      return new Response(
+        JSON.stringify({ error: 'Request too large' }),
+        { headers: securityHeaders, status: 413 }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { session_id, room_id, rating, feedback } = await req.json();
+    const body = await req.json();
+    const { session_id, room_id, rating, feedback } = body;
+
+    // Validate UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!session_id || !uuidRegex.test(session_id) || !room_id || !uuidRegex.test(room_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        { headers: securityHeaders, status: 400 }
+      );
+    }
 
     console.log('Submit reflection request:', { session_id, room_id, rating: rating || 'none', hasFeedback: !!feedback });
 
@@ -35,7 +65,7 @@ Deno.serve(async (req) => {
           error: 'Reflection already submitted for this conversation',
         }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 429,
         }
       );
@@ -47,7 +77,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Invalid session ID' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 400,
         }
       );
@@ -64,7 +94,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Session not found' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 404,
         }
       );
@@ -82,7 +112,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 404,
         }
       );
@@ -95,7 +125,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Not authorized for this room' }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 403,
         }
       );
@@ -108,7 +138,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: ratingValidation.error }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 400,
         }
       );
@@ -121,7 +151,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: feedbackValidation.error }),
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: securityHeaders,
           status: 400,
         }
       );
@@ -143,7 +173,7 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Failed to submit reflection' }),
           {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: securityHeaders,
             status: 500,
           }
         );
@@ -157,16 +187,16 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ success: true }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 200,
       }
     );
   } catch (error) {
     console.error('Error submitting reflection:', error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'Failed to submit reflection. Please try again.' }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: securityHeaders,
         status: 500,
       }
     );

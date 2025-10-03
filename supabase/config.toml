@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.match-opposite]
 verify_jwt = false
+
+[functions.validate-session]
+verify_jwt = false
+
+[functions.send-message]
+verify_jwt = false

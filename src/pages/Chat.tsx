@@ -186,26 +186,39 @@ const Chat = () => {
     setInputText("");
 
     try {
-      // Insert message
-      const { error: messageError } = await supabase
-        .from("messages")
-        .insert({
-          room_id: roomId,
+      const { data, error } = await supabase.functions.invoke('send-message', {
+        body: {
           session_id: session.id,
+          room_id: roomId,
           content: messageText,
-        });
+        },
+      });
 
-      if (messageError) throw messageError;
+      if (error) {
+        console.error("Error sending message:", error);
+        
+        // Handle specific error cases
+        if (error.message?.includes('Rate limit exceeded')) {
+          toast.error('Please slow down - you\'re sending messages too quickly');
+        } else if (error.message?.includes('inappropriate content')) {
+          toast.error('Message contains inappropriate content');
+        } else {
+          toast.error("Failed to send message");
+        }
+        
+        setInputText(messageText);
+        return;
+      }
 
-      // Update room activity
-      await supabase
-        .from("chat_rooms")
-        .update({ last_activity: new Date().toISOString() })
-        .eq("id", roomId);
+      if (!data?.success) {
+        console.error("Failed to send message");
+        toast.error("Failed to send message");
+        setInputText(messageText);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
-      setInputText(messageText); // Restore text
+      setInputText(messageText);
     }
   };
 

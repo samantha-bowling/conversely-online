@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 const Matching = () => {
   const navigate = useNavigate();
   const { session } = useSession();
-  const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown">("searching");
+  const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown" | "rate-limited">("searching");
   const [waitSeconds, setWaitSeconds] = useState(0);
 
   useEffect(() => {
@@ -25,6 +25,9 @@ const Matching = () => {
         if (data.status === 'cooldown') {
           setStatus('cooldown');
           setWaitSeconds(data.wait_seconds);
+        } else if (data.status === 'rate_limited') {
+          setStatus('rate-limited');
+          setWaitSeconds(data.retry_after || 60);
         } else if (data.status === 'match_found') {
           setStatus("found");
           setTimeout(() => {
@@ -88,6 +91,26 @@ const Matching = () => {
               <h2 className="text-2xl font-bold">Please wait</h2>
               <p className="text-muted-foreground">
                 You can try matching again in {waitSeconds} seconds.
+              </p>
+            </div>
+
+            <div className="pt-4">
+              <ConversationButton
+                variant="outline"
+                onClick={() => navigate("/")}
+              >
+                Back to Home
+              </ConversationButton>
+            </div>
+          </div>
+        )}
+
+        {status === "rate-limited" && (
+          <div className="space-y-6 text-center">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">Slow down there!</h2>
+              <p className="text-muted-foreground">
+                You've tried matching too many times. Please wait {waitSeconds} seconds before trying again.
               </p>
             </div>
 

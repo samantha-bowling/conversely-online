@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,25 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { session_id } = await req.json();
+
+    // Rate limiting: 5 match attempts per hour per session
+    const rateLimitKey = `match-opposite:${session_id}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 5, 3600000); // 5 per hour
+
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for session:', session_id);
+      return new Response(
+        JSON.stringify({
+          status: 'rate_limited',
+          error: 'Too many match requests. Please try again later.',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 429,
+        }
+      );
+    }
 
     // Check cooldown
     const { data: session } = await supabase

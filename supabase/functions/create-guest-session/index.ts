@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +34,28 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Rate limiting: 3 sessions per IP per hour
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    const rateLimitKey = `create-session:${clientIp}`;
+    const rateLimit = checkRateLimit(rateLimitKey, 3, 3600000); // 3 per hour
+
+    if (!rateLimit.allowed) {
+      console.log('Rate limit exceeded for IP:', clientIp);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many session requests. Please try again later.',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 429,
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);

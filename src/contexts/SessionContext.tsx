@@ -24,7 +24,16 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     try {
       const { data, error } = await supabase.functions.invoke('create-guest-session');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating session:', error);
+        
+        // Handle rate limiting
+        if (error.message?.includes('Too many session requests')) {
+          console.warn('Session creation rate limited');
+          // Still try to continue with a degraded experience
+        }
+        return;
+      }
       
       localStorage.setItem('guest_session', JSON.stringify(data));
       setSession(data);

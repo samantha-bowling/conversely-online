@@ -61,11 +61,12 @@ const Chat = () => {
     
     // Fetch room details
     const fetchRoom = async () => {
-      const { data, error } = await supabase
-        .from("chat_rooms")
-        .select("*")
-        .eq("id", room_id)
-        .single();
+      const { data, error } = await supabase.functions.invoke('get-room-data', {
+        body: {
+          session_id: session.id,
+          room_id: room_id,
+        },
+      });
 
       if (error || !data) {
         toast.error("Room not found");
@@ -79,9 +80,7 @@ const Chat = () => {
       }
 
       setRoomStatus(data.status);
-      setPartnerSessionId(
-        data.session_a === session.id ? data.session_b : data.session_a
-      );
+      setPartnerSessionId(data.partner_id);
     };
 
     fetchRoom();
@@ -223,15 +222,25 @@ const Chat = () => {
   };
 
   const handleEndChat = async () => {
-    if (!roomId) return;
+    if (!roomId || !session) return;
 
     try {
-      await supabase
-        .from("chat_rooms")
-        .update({ status: "ended", ended_at: new Date().toISOString() })
-        .eq("id", roomId);
+      const { data, error } = await supabase.functions.invoke('end-chat', {
+        body: {
+          session_id: session.id,
+          room_id: roomId,
+        },
+      });
 
-      navigate("/reflection", { state: { room_id: roomId } });
+      if (error) {
+        console.error("Error ending chat:", error);
+        toast.error("Failed to end chat");
+        return;
+      }
+
+      if (data?.success) {
+        navigate("/reflection", { state: { room_id: roomId } });
+      }
     } catch (error) {
       console.error("Error ending chat:", error);
       toast.error("Failed to end chat");
@@ -239,23 +248,31 @@ const Chat = () => {
   };
 
   const handleBlock = async () => {
-    if (!roomId || !session || !partnerSessionId) return;
+    if (!roomId || !session) return;
 
     try {
-      // Insert blocked pair
-      await supabase.from("blocked_pairs").insert({
-        session_a: session.id,
-        session_b: partnerSessionId,
+      const { data, error } = await supabase.functions.invoke('block-user', {
+        body: {
+          session_id: session.id,
+          room_id: roomId,
+        },
       });
 
-      // End room
-      await supabase
-        .from("chat_rooms")
-        .update({ status: "ended", ended_at: new Date().toISOString() })
-        .eq("id", roomId);
+      if (error) {
+        console.error("Error blocking user:", error);
+        
+        if (error.message?.includes('Rate limit exceeded')) {
+          toast.error('Too many blocks - please wait before blocking again');
+        } else {
+          toast.error("Failed to block user");
+        }
+        return;
+      }
 
-      toast.success("User blocked and chat ended");
-      navigate("/reflection", { state: { room_id: roomId } });
+      if (data?.success) {
+        toast.success("User blocked and chat ended");
+        navigate("/reflection", { state: { room_id: roomId } });
+      }
     } catch (error) {
       console.error("Error blocking user:", error);
       toast.error("Failed to block user");

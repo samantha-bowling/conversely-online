@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.send-message]
 verify_jwt = false
+
+[functions.get-room-data]
+verify_jwt = false
+
+[functions.end-chat]
+verify_jwt = false
+
+[functions.block-user]
+verify_jwt = false

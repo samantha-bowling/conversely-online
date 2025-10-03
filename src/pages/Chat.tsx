@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
+import { validateMessage } from "@/lib/validation";
 
 interface Message {
   id: string;
@@ -182,6 +183,14 @@ const Chat = () => {
     if (!inputText.trim() || !roomId || !session) return;
 
     const messageText = inputText.trim();
+    
+    // Client-side validation
+    const validation = validateMessage(messageText);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
     setInputText("");
 
     try {
@@ -404,22 +413,28 @@ const Chat = () => {
             <p>Conversation has ended</p>
           </div>
         ) : (
-          <div className="flex gap-2 max-w-4xl mx-auto">
-            <Input
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Type your message..."
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!inputText.trim()}
-              size="icon"
-              className="bg-primary hover:bg-primary/90"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+          <div className="space-y-2 max-w-4xl mx-auto">
+            <div className="flex gap-2">
+              <Input
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Type your message..."
+                className="flex-1"
+                maxLength={500}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!inputText.trim()}
+                size="icon"
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground text-right">
+              {inputText.length}/500
+            </div>
           </div>
         )}
       </div>

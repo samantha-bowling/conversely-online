@@ -5,6 +5,8 @@ import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Star } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { validateFeedback } from "@/lib/validation";
 
 const Reflection = () => {
   const navigate = useNavigate();
@@ -21,6 +23,16 @@ const Reflection = () => {
       return;
     }
 
+    // Validate feedback if provided
+    const feedbackText = feedback.trim();
+    if (feedbackText) {
+      const validation = validateFeedback(feedbackText);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
@@ -29,26 +41,27 @@ const Reflection = () => {
           session_id: session.id,
           room_id: roomId,
           rating: rating || null,
-          feedback: feedback.trim() || null,
+          feedback: feedbackText || null,
         },
       });
 
       if (error) {
         console.error('Error saving reflection:', error);
-        // Don't block navigation even if reflection fails
+        toast.error('Failed to save reflection');
+        setSubmitting(false);
+        return;
       }
 
       if (data?.success || !rating) {
-        // Navigate home whether reflection succeeded or was skipped
+        toast.success('Thank you for your feedback');
         navigate("/");
       } else {
-        // If there was an issue but we got a response, still navigate
         navigate("/");
       }
     } catch (error) {
       console.error('Error saving reflection:', error);
-      // Always navigate home, even on error
-      navigate("/");
+      toast.error('Failed to save reflection');
+      setSubmitting(false);
     }
   };
 
@@ -97,7 +110,11 @@ const Reflection = () => {
               placeholder="Share your experience..."
               rows={4}
               className="resize-none"
+              maxLength={1000}
             />
+            <div className="text-xs text-muted-foreground text-right">
+              {feedback.length}/1000 {feedback.length > 0 && feedback.length < 10 && "(min 10 characters)"}
+            </div>
           </div>
 
           <ConversationButton

@@ -24,19 +24,32 @@ const Reflection = () => {
     setSubmitting(true);
 
     try {
-      if (rating) {
-        await supabase.from('reflections').insert({
-          room_id: roomId,
+      const { data, error } = await supabase.functions.invoke('submit-reflection', {
+        body: {
           session_id: session.id,
-          rating,
+          room_id: roomId,
+          rating: rating || null,
           feedback: feedback.trim() || null,
-        });
+        },
+      });
+
+      if (error) {
+        console.error('Error saving reflection:', error);
+        // Don't block navigation even if reflection fails
+      }
+
+      if (data?.success || !rating) {
+        // Navigate home whether reflection succeeded or was skipped
+        navigate("/");
+      } else {
+        // If there was an issue but we got a response, still navigate
+        navigate("/");
       }
     } catch (error) {
       console.error('Error saving reflection:', error);
+      // Always navigate home, even on error
+      navigate("/");
     }
-
-    navigate("/");
   };
 
   return (

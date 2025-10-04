@@ -4,6 +4,7 @@ import { ConversationButton } from "@/components/ConversationButton";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft } from "lucide-react";
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 // Survey questions with binary choices
 const SURVEY_QUESTIONS = [
@@ -59,8 +60,10 @@ const Survey = () => {
       // Survey complete, save to database
       setSubmitting(true);
       try {
-        const answersArray = Object.entries(newAnswers).map(([question_id, answer]) => ({
-          session_id: session?.id,
+        type SurveyAnswerInsert = TablesInsert<'survey_answers'>;
+
+        const answersArray: SurveyAnswerInsert[] = Object.entries(newAnswers).map(([question_id, answer]) => ({
+          session_id: session?.id!,
           question_id,
           answer,
         }));

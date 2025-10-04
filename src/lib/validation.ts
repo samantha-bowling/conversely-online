@@ -92,3 +92,36 @@ export function validateMessage(content: string): ValidationResult {
   return { valid: true };
 }
 
+/**
+ * Type guards for runtime validation
+ */
+import type { ChatLocationState, MatchOppositeResponse, GetRoomDataResponse } from '@/types';
+
+export function isValidLocationState(state: unknown): state is ChatLocationState {
+  return (
+    typeof state === 'object' &&
+    state !== null &&
+    'room_id' in state &&
+    typeof (state as any).room_id === 'string' &&
+    (state as any).room_id.length > 0
+  );
+}
+
+export function isMatchResponse(data: unknown): data is MatchOppositeResponse {
+  if (typeof data !== 'object' || data === null) return false;
+  const response = data as any;
+  return (
+    typeof response.status === 'string' &&
+    ['match_found', 'no_match', 'cooldown', 'rate_limited'].includes(response.status)
+  );
+}
+
+export function isRoomDataResponse(data: unknown): data is GetRoomDataResponse {
+  if (typeof data !== 'object' || data === null) return false;
+  const response = data as any;
+  return (
+    typeof response.status === 'string' &&
+    ['active', 'ended'].includes(response.status) &&
+    typeof response.partner_id === 'string'
+  );
+}

@@ -4,6 +4,8 @@ import { ConversationButton } from "@/components/ConversationButton";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { isMatchResponse } from "@/lib/validation";
+import type { MatchOppositeResponse } from '@/types';
 
 const Matching = () => {
   const navigate = useNavigate();
@@ -16,19 +18,25 @@ const Matching = () => {
       if (!session) return;
 
       try {
-        const { data, error } = await supabase.functions.invoke('match-opposite', {
+        const { data, error } = await supabase.functions.invoke<MatchOppositeResponse>('match-opposite', {
           body: { session_id: session.id },
         });
 
         if (error) throw error;
 
+        if (!isMatchResponse(data)) {
+          console.error('Invalid match response format');
+          setStatus("not-found");
+          return;
+        }
+
         if (data.status === 'cooldown') {
           setStatus('cooldown');
-          setWaitSeconds(data.wait_seconds);
+          setWaitSeconds(data.wait_seconds || 0);
         } else if (data.status === 'rate_limited') {
           setStatus('rate-limited');
           setWaitSeconds(data.retry_after || 60);
-        } else if (data.status === 'match_found') {
+        } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
           setTimeout(() => {
             navigate("/chat", { state: { room_id: data.room_id } });

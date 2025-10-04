@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { CreateSessionResponse } from '@/types';
 
 interface Session {
   id: string;
@@ -22,7 +23,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const createNewSession = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('create-guest-session');
+      const { data, error } = await supabase.functions.invoke<CreateSessionResponse>('create-guest-session');
       
       if (error) {
         console.error('Error creating session:', error);

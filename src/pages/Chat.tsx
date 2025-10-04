@@ -14,7 +14,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
-import { validateMessage } from "@/lib/validation";
+import { validateMessage, isValidLocationState, isRoomDataResponse } from "@/lib/validation";
+import type { ChatLocationState, GetRoomDataResponse, SendMessageResponse, 
+  EndChatResponse, BlockUserResponse, MessagePayload } from '@/types';
 
 interface Message {
   id: string;
@@ -49,11 +51,16 @@ const Chat = () => {
 
   // Initialize room
   useEffect(() => {
-    const state = location.state as { room_id?: string };
-    const room_id = state?.room_id;
-
-    if (!room_id || !session) {
+    if (!isValidLocationState(location.state)) {
       toast.error("No active conversation found");
+      navigate("/");
+      return;
+    }
+
+    const room_id = location.state.room_id;
+
+    if (!session) {
+      toast.error("No active session");
       navigate("/");
       return;
     }
@@ -62,14 +69,15 @@ const Chat = () => {
     
     // Fetch room details
     const fetchRoom = async () => {
-      const { data, error } = await supabase.functions.invoke('get-room-data', {
+      const { data, error } = await supabase.functions.invoke<GetRoomDataResponse>('get-room-data', {
         body: {
           session_id: session.id,
           room_id: room_id,
         },
       });
 
-      if (error || !data) {
+      if (error || !data || !isRoomDataResponse(data)) {
+        console.error('Error fetching room:', error);
         toast.error("Room not found");
         navigate("/");
         return;
@@ -102,7 +110,7 @@ const Chat = () => {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          const newMsg = payload.new;
+          const newMsg = payload.new as MessagePayload;
           const sender = newMsg.session_id === session?.id ? "me" : "other";
           
           const message: Message = {
@@ -194,7 +202,7 @@ const Chat = () => {
     setInputText("");
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-message', {
+      const { data, error } = await supabase.functions.invoke<SendMessageResponse>('send-message', {
         body: {
           session_id: session.id,
           room_id: roomId,
@@ -234,7 +242,7 @@ const Chat = () => {
     if (!roomId || !session) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('end-chat', {
+      const { data, error } = await supabase.functions.invoke<EndChatResponse>('end-chat', {
         body: {
           session_id: session.id,
           room_id: roomId,
@@ -260,7 +268,7 @@ const Chat = () => {
     if (!roomId || !session) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('block-user', {
+      const { data, error } = await supabase.functions.invoke<BlockUserResponse>('block-user', {
         body: {
           session_id: session.id,
           room_id: roomId,

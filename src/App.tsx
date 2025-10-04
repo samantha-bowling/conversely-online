@@ -8,7 +8,6 @@ import Landing from "./pages/Landing";
 import Survey from "./pages/Survey";
 import Matching from "./pages/Matching";
 import Chat from "./pages/Chat";
-import Reflection from "./pages/Reflection";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +24,6 @@ const App = () => (
             <Route path="/survey" element={<Survey />} />
             <Route path="/matching" element={<Matching />} />
             <Route path="/chat" element={<Chat />} />
-            <Route path="/reflection" element={<Reflection />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -76,7 +76,7 @@ const Chat = () => {
       }
 
       if (data.status === "ended") {
-        navigate("/reflection", { state: { room_id } });
+        navigate("/");
         return;
       }
 
@@ -162,7 +162,7 @@ const Chat = () => {
             setRoomStatus("ended");
             toast.info("Conversation ended");
             setTimeout(() => {
-              navigate("/reflection", { state: { room_id: roomId } });
+              navigate("/");
             }, 2000);
           }
         }
@@ -248,7 +248,7 @@ const Chat = () => {
       }
 
       if (data?.success) {
-        navigate("/reflection", { state: { room_id: roomId } });
+        navigate("/");
       }
     } catch (error) {
       console.error("Error ending chat:", error);
@@ -280,7 +280,7 @@ const Chat = () => {
 
       if (data?.success) {
         toast.success("User blocked and chat ended");
-        navigate("/reflection", { state: { room_id: roomId } });
+        navigate("/");
       }
     } catch (error) {
       console.error("Error blocking user:", error);

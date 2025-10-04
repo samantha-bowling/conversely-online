@@ -35,9 +35,6 @@ export const handleError = (
   if (showToast) {
     toast.error(description || errorMessage);
   }
-
-  // TODO: Send to error tracking service (e.g., Sentry, LogRocket)
-  // trackError(error, { title, context: options });
 };
 
 /**

@@ -77,8 +77,8 @@ export function validateMessage(content: string): ValidationResult {
     return { valid: false, error: 'Message cannot be empty' };
   }
 
-  if (sanitized.length > 500) {
-    return { valid: false, error: 'Message is too long (max 500 characters)' };
+  if (sanitized.length > VALIDATION.MAX_MESSAGE_LENGTH) {
+    return { valid: false, error: `Message is too long (max ${VALIDATION.MAX_MESSAGE_LENGTH} characters)` };
   }
 
   if (containsHTML(sanitized)) {
@@ -96,6 +96,7 @@ export function validateMessage(content: string): ValidationResult {
  * Type guards for runtime validation
  */
 import type { ChatLocationState, MatchOppositeResponse, GetRoomDataResponse } from '@/types';
+import { VALIDATION } from '@/config/constants';
 
 export function isValidLocationState(state: unknown): state is ChatLocationState {
   return (

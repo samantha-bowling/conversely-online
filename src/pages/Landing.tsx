@@ -10,7 +10,6 @@ const Landing = () => {
   } = useSession();
   return <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
       <div className="max-w-md w-full space-y-8 text-center">
-        {/* Logo placeholder - will add actual logo */}
         <div className="mb-8">
           <img src={converselyBanner} alt="Conversely" className="max-w-[336px] w-full mx-auto" />
         </div>

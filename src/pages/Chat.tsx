@@ -224,7 +224,7 @@ const Chat = () => {
         setInputText(messageText);
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error sending message:", error instanceof Error ? error.message : 'Unknown error');
       toast.error("Failed to send message");
       setInputText(messageText);
     }
@@ -251,7 +251,7 @@ const Chat = () => {
         navigate("/");
       }
     } catch (error) {
-      console.error("Error ending chat:", error);
+      console.error("Error ending chat:", error instanceof Error ? error.message : 'Unknown error');
       toast.error("Failed to end chat");
     }
   };
@@ -283,7 +283,7 @@ const Chat = () => {
         navigate("/");
       }
     } catch (error) {
-      console.error("Error blocking user:", error);
+      console.error("Error blocking user:", error instanceof Error ? error.message : 'Unknown error');
       toast.error("Failed to block user");
     }
   };

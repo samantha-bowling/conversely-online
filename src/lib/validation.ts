@@ -92,36 +92,3 @@ export function validateMessage(content: string): ValidationResult {
   return { valid: true };
 }
 
-/**
- * Validate feedback content (for reflection)
- */
-export function validateFeedback(feedback: string): ValidationResult {
-  if (!feedback) {
-    return { valid: true }; // Feedback is optional
-  }
-
-  if (typeof feedback !== 'string') {
-    return { valid: false, error: 'Invalid feedback format' };
-  }
-
-  const sanitized = sanitizeText(feedback);
-  
-  // If providing feedback, require minimum length
-  if (sanitized.length > 0 && sanitized.length < 10) {
-    return { valid: false, error: 'Feedback must be at least 10 characters' };
-  }
-  
-  if (sanitized.length > 1000) {
-    return { valid: false, error: 'Feedback is too long (max 1000 characters)' };
-  }
-
-  if (containsHTML(sanitized)) {
-    return { valid: false, error: 'Feedback contains HTML tags' };
-  }
-
-  if (containsBlockedContent(sanitized)) {
-    return { valid: false, error: 'Feedback contains inappropriate content' };
-  }
-
-  return { valid: true };
-}

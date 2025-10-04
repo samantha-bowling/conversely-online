@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Session {
@@ -20,7 +20,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const createNewSession = async () => {
+  const createNewSession = useCallback(async () => {
     try {
       const { data, error } = await supabase.functions.invoke('create-guest-session');
       
@@ -38,11 +38,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('guest_session', JSON.stringify(data));
       setSession(data);
     } catch (error) {
-      console.error('Error creating session:', error);
+      console.error('Error creating session:', error instanceof Error ? error.message : 'Unknown error');
     }
-  };
+  }, []);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     const stored = localStorage.getItem('guest_session');
     
     if (stored) {
@@ -58,11 +58,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     
     await createNewSession();
     setLoading(false);
-  };
+  }, [createNewSession]);
 
   useEffect(() => {
     refreshSession();
-  }, []);
+  }, [refreshSession]);
 
   return (
     <SessionContext.Provider value={{ session, loading, refreshSession }}>

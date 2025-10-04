@@ -37,7 +37,7 @@ const Matching = () => {
           setStatus("not-found");
         }
       } catch (error) {
-        console.error('Error finding match:', error);
+        console.error('Error finding match:', error instanceof Error ? error.message : 'Unknown error');
         setStatus("not-found");
       }
     };

@@ -20,6 +20,3 @@ verify_jwt = false
 
 [functions.block-user]
 verify_jwt = false
-
-[functions.submit-reflection]
-verify_jwt = false

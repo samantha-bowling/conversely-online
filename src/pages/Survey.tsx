@@ -73,7 +73,7 @@ const Survey = () => {
 
         navigate("/matching");
       } catch (error) {
-        console.error('Error saving survey answers:', error);
+        console.error('Error saving survey answers:', error instanceof Error ? error.message : 'Unknown error');
         setSubmitting(false);
       }
     }

@@ -12,6 +12,7 @@ const Matching = () => {
   const { session } = useSession();
   const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown" | "rate-limited">("searching");
   const [waitSeconds, setWaitSeconds] = useState(0);
+  const [statusAnnouncement, setStatusAnnouncement] = useState("Searching for a conversation partner");
 
   useEffect(() => {
     const findMatch = async () => {
@@ -33,16 +34,20 @@ const Matching = () => {
         if (data.status === 'cooldown') {
           setStatus('cooldown');
           setWaitSeconds(data.wait_seconds || 0);
+          setStatusAnnouncement(`Please wait ${data.wait_seconds || 0} seconds before trying again`);
         } else if (data.status === 'rate_limited') {
           setStatus('rate-limited');
           setWaitSeconds(data.retry_after || 60);
+          setStatusAnnouncement(`Rate limited. Please wait ${data.retry_after || 60} seconds`);
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
+          setStatusAnnouncement("Match found! Connecting to conversation");
           setTimeout(() => {
             navigate("/chat", { state: { room_id: data.room_id } });
           }, 1500);
         } else {
           setStatus("not-found");
+          setStatusAnnouncement("No match found at this time");
         }
       } catch (error) {
         console.error('Error finding match:', error instanceof Error ? error.message : 'Unknown error');
@@ -56,7 +61,12 @@ const Matching = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
-      <div className="max-w-md w-full text-center space-y-8">
+      {/* Screen reader announcements */}
+      <div role="status" aria-live="assertive" aria-atomic="true" className="sr-only">
+        {statusAnnouncement}
+      </div>
+      
+      <main className="max-w-md w-full text-center space-y-8" role="main">
         {status === "searching" && (
           <>
             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
@@ -159,7 +169,7 @@ const Matching = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 };

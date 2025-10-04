@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface ConversationButtonProps {
+interface ConversationButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "outline";
@@ -15,6 +15,7 @@ export const ConversationButton = ({
   variant = "primary",
   disabled,
   className,
+  ...rest
 }: ConversationButtonProps) => {
   const variantStyles = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90 h-14 text-base font-medium",
@@ -31,6 +32,7 @@ export const ConversationButton = ({
         variantStyles[variant],
         className
       )}
+      {...rest}
     >
       {children}
     </Button>

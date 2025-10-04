@@ -48,6 +48,9 @@ const Chat = () => {
   const [partnerSessionId, setPartnerSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fadeTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [statusAnnouncement, setStatusAnnouncement] = useState("");
+  const [messageAnnouncement, setMessageAnnouncement] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Initialize room
   useEffect(() => {
@@ -90,6 +93,7 @@ const Chat = () => {
 
       setRoomStatus(data.status);
       setPartnerSessionId(data.partner_id);
+      setStatusAnnouncement("Connected to conversation partner");
     };
 
     fetchRoom();
@@ -122,6 +126,11 @@ const Chat = () => {
           };
 
           setMessages((prev) => [...prev, message]);
+          
+          // Announce new message to screen readers
+          if (sender === "other") {
+            setMessageAnnouncement(`New message received: ${newMsg.content}`);
+          }
 
           // Start fade timer (40 seconds)
           const fadeTimer = setTimeout(() => {
@@ -168,6 +177,7 @@ const Chat = () => {
           const newStatus = payload.new.status;
           if (newStatus === "ended") {
             setRoomStatus("ended");
+            setStatusAnnouncement("Conversation ended");
             toast.info("Conversation ended");
             setTimeout(() => {
               navigate("/");
@@ -298,12 +308,28 @@ const Chat = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      {/* Skip to main content link */}
+      <a 
+        href="#message-input" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+      >
+        Skip to message input
+      </a>
+      
+      {/* Screen reader announcements */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusAnnouncement}
+      </div>
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {messageAnnouncement}
+      </div>
+      
       {/* Guidelines Dialog */}
       <Dialog open={showGuidelines} onOpenChange={setShowGuidelines}>
-        <DialogContent>
+        <DialogContent aria-describedby="guidelines-description">
           <DialogHeader>
-            <DialogTitle>Before you begin</DialogTitle>
-            <DialogDescription className="space-y-3 pt-2">
+            <DialogTitle>Conversation Guidelines</DialogTitle>
+            <DialogDescription id="guidelines-description" className="space-y-3 pt-2">
               <p className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-primary" />
                 <span>Don't share personal information</span>
@@ -330,10 +356,10 @@ const Chat = () => {
 
       {/* Prompt Dialog */}
       <Dialog open={showPromptDialog} onOpenChange={setShowPromptDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby="prompt-description">
           <DialogHeader>
-            <DialogTitle>Conversation Prompt</DialogTitle>
-            <DialogDescription className="pt-4 text-base">
+            <DialogTitle>Conversation Starter</DialogTitle>
+            <DialogDescription id="prompt-description" className="pt-4 text-base">
               {currentPrompt}
             </DialogDescription>
             <Button
@@ -348,22 +374,23 @@ const Chat = () => {
       </Dialog>
 
       {/* Header */}
-      <div className="border-b border-border p-4 flex items-center justify-between bg-card">
+      <header className="border-b border-border p-4 flex items-center justify-between bg-card" role="banner">
         <div>
           <div className="font-bold">Anonymous</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground" role="status" aria-live="polite">
             {roomStatus === "ended" ? "Disconnected" : "Connected"}
           </div>
         </div>
-        <div className="flex gap-2">
+        <nav className="flex gap-2" aria-label="Chat controls">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowPromptDialog(true)}
             className="gap-2"
             disabled={roomStatus === "ended"}
+            aria-label="Show conversation prompt"
           >
-            <Lightbulb className="w-4 h-4" />
+            <Lightbulb className="w-4 h-4" aria-hidden="true" />
             Prompt
           </Button>
           <Button
@@ -371,6 +398,7 @@ const Chat = () => {
             size="sm"
             onClick={handleBlock}
             disabled={roomStatus === "ended"}
+            aria-label="Block user and end conversation"
           >
             Block
           </Button>
@@ -379,14 +407,21 @@ const Chat = () => {
             size="sm"
             onClick={handleEndChat}
             disabled={roomStatus === "ended"}
+            aria-label="End conversation"
           >
             End Chat
           </Button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <main 
+        className="flex-1 overflow-y-auto p-4 space-y-4" 
+        role="main" 
+        aria-label="Chat messages"
+        aria-live="polite"
+        aria-atomic="false"
+      >
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground py-8">
             <p>Say hello to start the conversation</p>
@@ -399,6 +434,8 @@ const Chat = () => {
             className={`flex ${message.sender === "me" ? "justify-end" : "justify-start"} ${
               message.fading ? "animate-fade-dissolve" : "animate-fade-in-gentle"
             }`}
+            role="article"
+            aria-label={`Message from ${message.sender === "me" ? "you" : "conversation partner"}`}
           >
             <div
               className={`max-w-[70%] rounded-lg p-3 ${
@@ -412,40 +449,61 @@ const Chat = () => {
           </div>
         ))}
         <div ref={messagesEndRef} />
-      </div>
+      </main>
 
       {/* Input */}
-      <div className="border-t border-border p-4 bg-card">
+      <footer className="border-t border-border p-4 bg-card" role="contentinfo">
         {roomStatus === "ended" ? (
           <div className="text-center text-muted-foreground py-4">
             <p>Conversation has ended</p>
           </div>
         ) : (
-          <div className="space-y-2 max-w-4xl mx-auto">
+          <form 
+            className="space-y-2 max-w-4xl mx-auto"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            aria-label="Send message form"
+          >
             <div className="flex gap-2">
+              <label htmlFor="message-input" className="sr-only">
+                Type your message
+              </label>
               <Input
+                id="message-input"
+                ref={inputRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder="Type your message..."
                 className="flex-1"
                 maxLength={500}
+                aria-label="Message input"
+                aria-describedby="char-count"
               />
               <Button
+                type="submit"
                 onClick={handleSend}
                 disabled={!inputText.trim()}
                 size="icon"
                 className="bg-primary hover:bg-primary/90"
+                aria-label="Send message"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4" aria-hidden="true" />
               </Button>
             </div>
-            <div className="text-xs text-muted-foreground text-right">
-              {inputText.length}/500
+            <div id="char-count" className="text-xs text-muted-foreground text-right" aria-live="polite">
+              {inputText.length}/500 characters
             </div>
-          </div>
+          </form>
         )}
-      </div>
+      </footer>
     </div>
   );
 };

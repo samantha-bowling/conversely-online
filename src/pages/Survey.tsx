@@ -4,36 +4,10 @@ import { ConversationButton } from "@/components/ConversationButton";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft } from "lucide-react";
+import { handleError } from "@/lib/error-handler";
+import { ERROR_MESSAGES } from "@/config/constants";
+import { getRandomizedQuestions } from "@/config/survey";
 import type { TablesInsert } from '@/integrations/supabase/types';
-
-// Survey questions with binary choices
-const SURVEY_QUESTIONS = [
-  {
-    id: "progress",
-    question: "Is life today mostly better or worse than it used to be?",
-    options: ["Better", "Worse"],
-  },
-  {
-    id: "values",
-    question: "What's more important: freedom or safety?",
-    options: ["Freedom", "Safety"],
-  },
-  {
-    id: "community",
-    question: "Where do you feel more at home: small towns or big cities?",
-    options: ["Small towns", "Big cities"],
-  },
-  {
-    id: "politics",
-    question: "Do you see yourself as more liberal or more conservative?",
-    options: ["Liberal", "Conservative"],
-  },
-  {
-    id: "success",
-    question: "Do people do better when they compete or when they work together?",
-    options: ["Compete", "Work together"],
-  },
-];
 
 const Survey = () => {
   const navigate = useNavigate();
@@ -44,11 +18,7 @@ const Survey = () => {
   const [progressAnnouncement, setProgressAnnouncement] = useState("");
 
   // Randomize 3-5 questions on mount
-  const [questions] = useState(() => {
-    const shuffled = [...SURVEY_QUESTIONS].sort(() => Math.random() - 0.5);
-    const count = Math.floor(Math.random() * 3) + 3; // 3-5 questions
-    return shuffled.slice(0, count);
-  });
+  const [questions] = useState(() => getRandomizedQuestions({ min: 3, max: 5 }));
 
   const handleAnswer = async (answer: string) => {
     const questionId = questions[currentQuestion].id;
@@ -79,7 +49,7 @@ const Survey = () => {
 
         navigate("/matching");
       } catch (error) {
-        console.error('Error saving survey answers:', error instanceof Error ? error.message : 'Unknown error');
+        handleError(error, { description: ERROR_MESSAGES.SURVEY_SAVE_ERROR });
         setSubmitting(false);
       }
     }

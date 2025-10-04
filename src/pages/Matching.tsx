@@ -5,6 +5,8 @@ import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { isMatchResponse } from "@/lib/validation";
+import { handleError } from "@/lib/error-handler";
+import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
 import type { MatchOppositeResponse } from '@/types';
 
 const Matching = () => {
@@ -12,7 +14,7 @@ const Matching = () => {
   const { session } = useSession();
   const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown" | "rate-limited">("searching");
   const [waitSeconds, setWaitSeconds] = useState(0);
-  const [statusAnnouncement, setStatusAnnouncement] = useState("Searching for a conversation partner");
+  const [statusAnnouncement, setStatusAnnouncement] = useState<string>(STATUS_MESSAGES.SEARCHING);
 
   useEffect(() => {
     const findMatch = async () => {
@@ -26,7 +28,10 @@ const Matching = () => {
         if (error) throw error;
 
         if (!isMatchResponse(data)) {
-          console.error('Invalid match response format');
+          handleError(new Error('Invalid match response format'), { 
+            showToast: false,
+            logToConsole: true 
+          });
           setStatus("not-found");
           return;
         }
@@ -41,21 +46,21 @@ const Matching = () => {
           setStatusAnnouncement(`Rate limited. Please wait ${data.retry_after || 60} seconds`);
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
-          setStatusAnnouncement("Match found! Connecting to conversation");
+          setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
           setTimeout(() => {
             navigate("/chat", { state: { room_id: data.room_id } });
-          }, 1500);
+          }, TIMING.MATCH_FOUND_REDIRECT);
         } else {
           setStatus("not-found");
-          setStatusAnnouncement("No match found at this time");
+          setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
         }
       } catch (error) {
-        console.error('Error finding match:', error instanceof Error ? error.message : 'Unknown error');
+        handleError(error, { description: ERROR_MESSAGES.MATCH_ERROR });
         setStatus("not-found");
       }
     };
 
-    const timeout = setTimeout(findMatch, 2000);
+    const timeout = setTimeout(findMatch, TIMING.MATCHING_SEARCH_DELAY);
     return () => clearTimeout(timeout);
   }, [navigate, session]);
 

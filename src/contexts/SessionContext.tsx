@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/error-handler";
+import { ERROR_MESSAGES } from "@/config/constants";
 import type { CreateSessionResponse } from '@/types';
 
 interface Session {
@@ -26,12 +28,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase.functions.invoke<CreateSessionResponse>('create-guest-session');
       
       if (error) {
-        console.error('Error creating session:', error);
-        
         // Handle rate limiting
         if (error.message?.includes('Too many session requests')) {
-          console.warn('Session creation rate limited');
-          // Still try to continue with a degraded experience
+          handleError(error, { 
+            description: ERROR_MESSAGES.SESSION_RATE_LIMITED,
+            logToConsole: true 
+          });
+        } else {
+          handleError(error, { 
+            description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
+            logToConsole: true 
+          });
         }
         return;
       }
@@ -39,7 +46,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('guest_session', JSON.stringify(data));
       setSession(data);
     } catch (error) {
-      console.error('Error creating session:', error instanceof Error ? error.message : 'Unknown error');
+      handleError(error, { 
+        description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
+        logToConsole: true 
+      });
     }
   }, []);
 

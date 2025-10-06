@@ -14,6 +14,8 @@ import { ChatGuidelines } from "@/components/chat/ChatGuidelines";
 import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatMessages } from "@/hooks/useChatMessages";
+import { useTypingPresence } from "@/hooks/useTypingPresence";
+import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
@@ -28,7 +30,12 @@ const Chat = () => {
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
 
   const { roomId, roomStatus, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
-  const { messages, messageAnnouncement, messagesEndRef } = useChatMessages(roomId);
+  const { messages, messageAnnouncement, messagesEndRef, messagesChannel } = useChatMessages(roomId);
+  const { partnerTyping, announceTyping } = useTypingPresence(
+    roomId, 
+    { id: session?.id || "", name: session?.username || "Anonymous" }
+  );
+  const connectionStatus = useRealtimeConnection(messagesChannel);
 
   // Auto-hide expiry banner after first message
   useEffect(() => {
@@ -157,6 +164,7 @@ const Chat = () => {
       {/* Header */}
       <ChatHeader
         roomStatus={roomStatus}
+        connectionStatus={connectionStatus}
         onShowPrompt={() => setShowPromptDialog(true)}
         onBlock={handleBlock}
         onEndChat={handleEndChat}
@@ -207,12 +215,24 @@ const Chat = () => {
             <p>Conversation has ended</p>
           </div>
         ) : (
-          <ChatInput
-            inputText={inputText}
-            onInputChange={setInputText}
-            onSend={handleSend}
-            disabled={roomStatus === "ended"}
-          />
+          <>
+            {partnerTyping && (
+              <div className="text-sm text-muted-foreground mb-2 animate-pulse" aria-live="polite">
+                Partner is typing...
+              </div>
+            )}
+            <ChatInput
+              inputText={inputText}
+              onInputChange={(text) => {
+                setInputText(text);
+                if (text.length > 0) {
+                  announceTyping();
+                }
+              }}
+              onSend={handleSend}
+              disabled={roomStatus === "ended"}
+            />
+          </>
         )}
       </footer>
     </div>

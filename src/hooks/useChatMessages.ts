@@ -17,6 +17,7 @@ interface UseChatMessagesReturn {
   messages: Message[];
   messageAnnouncement: string;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  messagesChannel: ReturnType<typeof supabase.channel> | null;
 }
 
 export const useChatMessages = (roomId: string | null): UseChatMessagesReturn => {
@@ -24,6 +25,7 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAnnouncement, setMessageAnnouncement] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [messagesChannel, setMessagesChannel] = useState<ReturnType<typeof supabase.channel> | null>(null);
 
   // Use consolidated timer hook
   useEphemeralMessages({ messages, setMessages });
@@ -64,8 +66,11 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
       )
       .subscribe();
 
+    setMessagesChannel(channel);
+
     return () => {
       supabase.removeChannel(channel);
+      setMessagesChannel(null);
     };
   }, [roomId, session]);
 
@@ -78,5 +83,6 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
     messages,
     messageAnnouncement,
     messagesEndRef,
+    messagesChannel,
   };
 };

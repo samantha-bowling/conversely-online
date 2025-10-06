@@ -6,6 +6,8 @@ import type { ConnectionStatus } from "@/hooks/useRealtimeConnection";
 interface ChatHeaderProps {
   roomStatus: string;
   connectionStatus: ConnectionStatus;
+  partnerUsername: string;
+  partnerAvatar: string;
   onShowPrompt: () => void;
   onBlock: () => void;
   onEndChat: () => void;
@@ -14,6 +16,8 @@ interface ChatHeaderProps {
 export const ChatHeader = ({ 
   roomStatus,
   connectionStatus,
+  partnerUsername,
+  partnerAvatar,
   onShowPrompt, 
   onBlock, 
   onEndChat 
@@ -57,7 +61,7 @@ export const ChatHeader = ({
     <header className="border-b border-border p-4 flex items-center justify-between bg-card" role="banner">
       <div className="flex items-center gap-3">
         <div>
-          <div className="font-bold">Anonymous</div>
+          <div className="font-bold">{partnerAvatar} {partnerUsername}</div>
           <div className="text-xs text-muted-foreground" role="status" aria-live="polite">
             {roomStatus === "ended" ? "Disconnected" : "Active"}
           </div>

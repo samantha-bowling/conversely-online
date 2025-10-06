@@ -115,6 +115,13 @@ Deno.serve(async (req) => {
     // Determine partner session ID
     const partner_id = room.session_a === session_id ? room.session_b : room.session_a;
 
+    // Fetch partner's username and avatar
+    const { data: partnerSession } = await supabase
+      .from('guest_sessions')
+      .select('username, avatar')
+      .eq('id', partner_id)
+      .single();
+
     console.log('Room data retrieved:', { room_id, status: room.status });
 
     return new Response(
@@ -123,6 +130,8 @@ Deno.serve(async (req) => {
         status: room.status,
         last_activity: room.last_activity,
         partner_id,
+        partner_username: partnerSession?.username || 'Anonymous',
+        partner_avatar: partnerSession?.avatar || '👤',
         ended_at: room.ended_at,
       }),
       {

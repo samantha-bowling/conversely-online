@@ -12,6 +12,8 @@ interface UseChatRoomReturn {
   roomId: string | null;
   roomStatus: string;
   partnerSessionId: string | null;
+  partnerUsername: string;
+  partnerAvatar: string;
   statusAnnouncement: string;
   setStatusAnnouncement: (announcement: string) => void;
 }
@@ -23,6 +25,8 @@ export const useChatRoom = (): UseChatRoomReturn => {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [roomStatus, setRoomStatus] = useState<string>("active");
   const [partnerSessionId, setPartnerSessionId] = useState<string | null>(null);
+  const [partnerUsername, setPartnerUsername] = useState<string>("Anonymous");
+  const [partnerAvatar, setPartnerAvatar] = useState<string>("👤");
   const [statusAnnouncement, setStatusAnnouncement] = useState("");
 
   // Initialize room
@@ -65,6 +69,8 @@ export const useChatRoom = (): UseChatRoomReturn => {
 
       setRoomStatus(data.status);
       setPartnerSessionId(data.partner_id);
+      setPartnerUsername(data.partner_username);
+      setPartnerAvatar(data.partner_avatar);
       setStatusAnnouncement(STATUS_MESSAGES.CONNECTED);
     };
 
@@ -108,6 +114,8 @@ export const useChatRoom = (): UseChatRoomReturn => {
     roomId,
     roomStatus,
     partnerSessionId,
+    partnerUsername,
+    partnerAvatar,
     statusAnnouncement,
     setStatusAnnouncement,
   };

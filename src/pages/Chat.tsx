@@ -29,7 +29,7 @@ const Chat = () => {
   const [currentPrompt] = useState(getRandomPrompt);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
 
-  const { roomId, roomStatus, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
+  const { roomId, roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
   const { messages, messageAnnouncement, messagesEndRef, messagesChannel } = useChatMessages(roomId);
   const { partnerTyping, announceTyping } = useTypingPresence(
     roomId, 
@@ -165,6 +165,8 @@ const Chat = () => {
       <ChatHeader
         roomStatus={roomStatus}
         connectionStatus={connectionStatus}
+        partnerUsername={partnerUsername}
+        partnerAvatar={partnerAvatar}
         onShowPrompt={() => setShowPromptDialog(true)}
         onBlock={handleBlock}
         onEndChat={handleEndChat}
@@ -218,7 +220,7 @@ const Chat = () => {
           <>
             {partnerTyping && (
               <div className="text-sm text-muted-foreground mb-2 animate-pulse" aria-live="polite">
-                Partner is typing...
+                {partnerUsername} is typing...
               </div>
             )}
             <ChatInput

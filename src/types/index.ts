@@ -22,6 +22,8 @@ export interface GetRoomDataResponse {
   status: 'active' | 'ended';
   partner_id: string;
   room_id: string;
+  partner_username: string;
+  partner_avatar: string;
 }
 
 export interface SendMessageResponse {

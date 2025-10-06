@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase } from "@/integrations/supabase/client";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES } from "@/config/constants";
+import { toast } from "sonner";
 import type { CreateSessionResponse } from '@/types';
 
 interface Session {
@@ -74,6 +75,32 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     refreshSession();
   }, [refreshSession]);
+
+  // Monitor session expiry
+  useEffect(() => {
+    if (!session?.expires_at) return;
+
+    const expiryTime = new Date(session.expires_at).getTime();
+    const checkExpiry = () => {
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+
+      if (timeUntilExpiry <= 0) {
+        toast.error("Your session has expired");
+        localStorage.removeItem("guest_session");
+        setSession(null);
+        refreshSession();
+      }
+    };
+
+    // Check immediately
+    checkExpiry();
+
+    // Check every minute
+    const interval = setInterval(checkExpiry, 60000);
+
+    return () => clearInterval(interval);
+  }, [session?.expires_at, refreshSession]);
 
   return (
     <SessionContext.Provider value={{ session, loading, refreshSession }}>

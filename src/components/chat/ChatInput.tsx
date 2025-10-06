@@ -45,7 +45,7 @@ export const ChatInput = ({
           value={inputText}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type your message..."
+          placeholder={disabled ? "Cannot send messages..." : "Type your message..."}
           className="flex-1"
           maxLength={VALIDATION.MAX_MESSAGE_LENGTH}
           aria-label="Message input"

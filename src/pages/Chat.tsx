@@ -12,10 +12,12 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatGuidelines } from "@/components/chat/ChatGuidelines";
 import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
+import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatMessages } from "@/hooks/useChatMessages";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
 import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
+import { useSessionExpiry } from "@/hooks/useSessionExpiry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
@@ -28,8 +30,12 @@ const Chat = () => {
   const [showPromptDialog, setShowPromptDialog] = useState(false);
   const [currentPrompt] = useState(getRandomPrompt);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
+  const [isSending, setIsSending] = useState(false);
 
   const { roomId, roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
+  
+  // Monitor session expiry
+  useSessionExpiry(session?.expires_at || null);
   const { messages, messageAnnouncement, messagesEndRef, messagesChannel } = useChatMessages(roomId);
   const { partnerTyping, announceTyping } = useTypingPresence(
     roomId, 
@@ -46,7 +52,7 @@ const Chat = () => {
   }, [messages.length]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || !roomId || !session) return;
+    if (!inputText.trim() || !roomId || !session || isSending) return;
 
     const messageText = inputText.trim();
     
@@ -58,6 +64,7 @@ const Chat = () => {
     }
 
     setInputText("");
+    setIsSending(true);
 
     try {
       const { data, error } = await supabase.functions.invoke<SendMessageResponse>('send-message', {
@@ -81,6 +88,8 @@ const Chat = () => {
     } catch (error) {
       handleApiError(error, ERROR_MESSAGES.SEND_MESSAGE_FAILED);
       setInputText(messageText);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -172,6 +181,8 @@ const Chat = () => {
         onEndChat={handleEndChat}
       />
 
+      <ConnectionStatusBanner status={connectionStatus} />
+
       {/* Expiry Banner */}
       {showExpiryBanner && roomStatus === "active" && (
         <div className="px-4 pt-2">
@@ -232,7 +243,7 @@ const Chat = () => {
                 }
               }}
               onSend={handleSend}
-              disabled={roomStatus === "ended"}
+              disabled={roomStatus === "ended" || isSending || connectionStatus !== "connected"}
             />
           </>
         )}

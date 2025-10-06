@@ -3,11 +3,40 @@
  * These mirror the server-side validation for better UX
  */
 
+// Leetspeak normalization map
+const LEET_MAP: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
+  '@': 'a', '$': 's', '!': 'i', '+': 't', '€': 'e'
+};
+
+/**
+ * Normalize text for content detection
+ * Removes spaces, converts leetspeak, normalizes unicode
+ */
+export function normalizeForDetection(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, '') // Remove all whitespace
+    .replace(/[01345678@$!+€]/g, (char) => LEET_MAP[char] || char) // Convert leetspeak
+    .normalize('NFKD') // Normalize unicode variants
+    .replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+}
+
 // Blocked content patterns (subset of server-side patterns for performance)
 const BLOCKED_PATTERNS = [
-  // Profanity and offensive content
+  // Profanity and offensive content (including masked versions)
   /\b(fuck|shit|bitch|asshole|bastard|cunt|dick|pussy|cock)\b/gi,
+  /\b(f[\*\.@#$]ck|sh[\*\.@#$]t|b[\*\.@#$]tch)\b/gi, // Masked profanity
   /\b(nigger|nigga|faggot|retard|spic|chink|kike)\b/gi,
+  
+  // Sexual content and solicitation
+  /\b(send\s*(me\s*)?(nudes?|pics?|photos?))\b/gi,
+  /\b(dick\s*pic|nude\s*pic|sexy\s*pic)\b/gi,
+  /\b(want\s*to\s*(fuck|hook\s*up|bang))\b/gi,
+  
+  // Social media solicitation
+  /\b(add\s*me\s*on|find\s*me\s*on|follow\s*me)\s*(snap|insta|kik|telegram|discord|whatsapp)/gi,
+  /\b(snapchat|instagram|kik|telegram)\s*(:|\s+is\s+|@)/gi,
   
   // Personal information
   /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
@@ -16,6 +45,7 @@ const BLOCKED_PATTERNS = [
   // URLs
   /https?:\/\/[^\s]+/gi,
   /www\.[^\s]+/gi,
+  /\b\w+\.(com|net|org|io|co)\b/gi, // Domain names
   
   // Extreme content
   /\b(kill|murder|suicide|die|death|harm|hurt|attack|bomb|shoot|stab)\s+(you|yourself|me|them|him|her)\b/gi,
@@ -85,7 +115,9 @@ export function validateMessage(content: string): ValidationResult {
     return { valid: false, error: 'Message contains HTML tags' };
   }
 
-  if (containsBlockedContent(sanitized)) {
+  // Check for blocked content (normalized)
+  const normalized = normalizeForDetection(sanitized);
+  if (containsBlockedContent(sanitized) || containsBlockedContent(normalized)) {
     return { valid: false, error: 'Message contains inappropriate content' };
   }
 

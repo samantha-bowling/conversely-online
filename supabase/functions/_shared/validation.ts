@@ -3,23 +3,56 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 // Rate limiting store (in-memory with TTL)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
+// Leetspeak normalization map
+const LEET_MAP: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
+  '@': 'a', '$': 's', '!': 'i', '+': 't', '€': 'e'
+};
+
+/**
+ * Normalize text for content detection
+ * Removes spaces, converts leetspeak, normalizes unicode
+ */
+export function normalizeForDetection(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, '') // Remove all whitespace
+    .replace(/[01345678@$!+€]/g, (char) => LEET_MAP[char] || char) // Convert leetspeak
+    .normalize('NFKD') // Normalize unicode variants
+    .replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+}
+
 // Blocked content patterns
 export const BLOCKED_PATTERNS = [
-  // Profanity and offensive content
+  // Profanity and offensive content (including masked versions)
   /\b(fuck|shit|bitch|asshole|bastard|damn|cunt|dick|pussy|cock)\b/gi,
+  /\b(f[\*\.@#$]ck|sh[\*\.@#$]t|b[\*\.@#$]tch)\b/gi, // Masked profanity
   /\b(nigger|nigga|faggot|retard|spic|chink|kike)\b/gi,
   
-  // Personal information - phone numbers (more specific formats)
-  /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, // US/CA phone
+  // Sexual content and solicitation
+  /\b(send\s*(me\s*)?(nudes?|pics?|photos?))\b/gi,
+  /\b(dick\s*pic|nude\s*pic|sexy\s*pic)\b/gi,
+  /\b(want\s*to\s*(fuck|hook\s*up|bang))\b/gi,
+  
+  // Social media solicitation
+  /\b(add\s*me\s*on|find\s*me\s*on|follow\s*me)\s*(snap|insta|kik|telegram|discord|whatsapp)/gi,
+  /\b(snapchat|instagram|kik|telegram)\s*(:|\s+is\s+|@)/gi,
+  
+  // Personal information
+  /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, // Phone numbers
   /\b(\+?\d{1,3}[-.\s]?)?\d{10,}\b/g, // International
-  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email addresses
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // Email
   
   // Social media handles
-  /@\w+/g,
+  /@[\w]{3,}/g,
   
   // URLs
   /https?:\/\/[^\s]+/gi,
   /www\.[^\s]+/gi,
+  /\b\w+\.(com|net|org|io|co)\b/gi, // Domain names
+  
+  // Crypto spam
+  /\b(bitcoin|btc|eth|crypto|nft|invest|profit|money)\s+(now|today|dm|quick)/gi,
   
   // Extreme content
   /\b(kill|murder|suicide|die|death|harm|hurt|attack|bomb|shoot|stab)\s+(you|yourself|me|them|him|her)\b/gi,
@@ -227,9 +260,11 @@ export function validateMessageContent(content: string): ValidationResult {
     return { valid: false, error: 'Message contains HTML content', code: 'MESSAGE_HTML_DETECTED' };
   }
 
-  // Check for blocked patterns
+  // Check for blocked patterns (normalized)
+  const normalized = normalizeForDetection(sanitized);
   for (const pattern of BLOCKED_PATTERNS) {
-    if (pattern.test(sanitized)) {
+    // Test both original and normalized for better detection
+    if (pattern.test(sanitized) || pattern.test(normalized)) {
       return { valid: false, error: 'Message contains inappropriate content', code: 'MESSAGE_BLOCKED_CONTENT' };
     }
   }

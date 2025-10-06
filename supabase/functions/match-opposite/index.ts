@@ -76,14 +76,59 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check cooldown
+    // Check for emergency kill switch
+    const matchingDisabled = Deno.env.get('MATCHING_DISABLED');
+    if (matchingDisabled === 'true') {
+      return new Response(
+        JSON.stringify({ 
+          status: 'maintenance',
+          error: 'Matching is temporarily disabled for maintenance. Please try again later.'
+        }),
+        {
+          headers: securityHeaders,
+          status: 503,
+        }
+      );
+    }
+
+    // Check user session and behavioral flags
     const { data: session } = await supabase
       .from('guest_sessions')
-      .select('next_match_at')
+      .select('next_match_at, times_blocked, reputation_score')
       .eq('id', session_id)
       .single();
 
-    if (session && new Date(session.next_match_at) > new Date()) {
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Session not found' }),
+        { headers: securityHeaders, status: 404 }
+      );
+    }
+
+    // Filter out serial trolls (5+ blocks from different users)
+    if (session.times_blocked >= 5) {
+      console.log('Serial troll detected, blocking match:', session_id);
+      return new Response(
+        JSON.stringify({ 
+          status: 'restricted',
+          error: 'Your account has been restricted due to multiple reports. Please contact support.'
+        }),
+        {
+          headers: securityHeaders,
+          status: 403,
+        }
+      );
+    }
+
+    // Apply reputation-based cooldown multipliers
+    let baseCooldown = 90000; // 90 seconds default
+    if (session.reputation_score < -20) {
+      baseCooldown = 300000; // 5 minutes for very low reputation
+    } else if (session.reputation_score < -10) {
+      baseCooldown = 180000; // 3 minutes for low reputation
+    }
+
+    if (session.next_match_at && new Date(session.next_match_at) > new Date()) {
       const waitSeconds = Math.ceil(
         (new Date(session.next_match_at).getTime() - Date.now()) / 1000
       );
@@ -146,6 +191,18 @@ Deno.serve(async (req) => {
     for (const [otherId, otherAnswers] of sessionAnswers.entries()) {
       if (blockedIds.has(otherId)) continue;
 
+      // Check if potential match is a serial troll
+      const { data: otherSession } = await supabase
+        .from('guest_sessions')
+        .select('times_blocked')
+        .eq('id', otherId)
+        .single();
+
+      if (otherSession && otherSession.times_blocked >= 5) {
+        console.log('Skipping serial troll from matching:', otherId);
+        continue;
+      }
+
       let differentCount = 0;
       let totalCount = 0;
 
@@ -190,18 +247,18 @@ Deno.serve(async (req) => {
 
     if (roomError) throw roomError;
 
-    // Update cooldown (90 seconds)
+    // Update cooldown with reputation-based timing
     await supabase
       .from('guest_sessions')
       .update({
-        next_match_at: new Date(Date.now() + 90000).toISOString(),
+        next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
       })
       .eq('id', session_id);
 
     await supabase
       .from('guest_sessions')
       .update({
-        next_match_at: new Date(Date.now() + 90000).toISOString(),
+        next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
       })
       .eq('id', bestMatch);
 

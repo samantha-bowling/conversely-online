@@ -101,7 +101,11 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          last_quick_exit: string | null
           next_match_at: string | null
+          quick_exits: number
+          reputation_score: number
+          times_blocked: number
           username: string
         }
         Insert: {
@@ -109,7 +113,11 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          last_quick_exit?: string | null
           next_match_at?: string | null
+          quick_exits?: number
+          reputation_score?: number
+          times_blocked?: number
           username: string
         }
         Update: {
@@ -117,7 +125,11 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          last_quick_exit?: string | null
           next_match_at?: string | null
+          quick_exits?: number
+          reputation_score?: number
+          times_blocked?: number
           username?: string
         }
         Relationships: []

@@ -133,6 +133,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Update blocked user's reputation and times_blocked counter
+    // Fetch current values first
+    const { data: blockedSession } = await supabase
+      .from('guest_sessions')
+      .select('times_blocked, reputation_score')
+      .eq('id', partner_id)
+      .single();
+
+    if (blockedSession) {
+      await supabase
+        .from('guest_sessions')
+        .update({
+          times_blocked: (blockedSession.times_blocked || 0) + 1,
+          reputation_score: (blockedSession.reputation_score || 0) - 3
+        })
+        .eq('id', partner_id);
+
+      console.log('Updated reputation for blocked user:', partner_id);
+    }
+
     // End the chat if not already ended
     if (room.status !== 'ended') {
       const { error: endError } = await supabase

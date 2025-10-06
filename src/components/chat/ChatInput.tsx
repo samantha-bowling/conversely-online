@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VALIDATION } from "@/config/constants";
+import { toast } from "sonner";
 
 interface ChatInputProps {
   inputText: string;
@@ -18,11 +19,49 @@ export const ChatInput = ({
   disabled = false 
 }: ChatInputProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [canSendFirstMessage, setCanSendFirstMessage] = useState(false);
+  const [hasSentMessage, setHasSentMessage] = useState(false);
+
+  // First message delay (3 seconds) to break automation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCanSendFirstMessage(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSend = () => {
+    if (!hasSentMessage && !canSendFirstMessage) {
+      toast.error("Please wait a moment before sending your first message...");
+      return;
+    }
+    setHasSentMessage(true);
+    onSend();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
-      onSend();
+      handleSend();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const clipboardData = e.clipboardData;
+    
+    // Block image paste
+    if (clipboardData.files.length > 0) {
+      e.preventDefault();
+      toast.error("Image sharing is not supported");
+      return;
+    }
+
+    // Check for URLs in pasted text
+    const pastedText = clipboardData.getData('text');
+    if (/https?:\/\/|www\./i.test(pastedText)) {
+      e.preventDefault();
+      toast.error("Sharing links is not allowed");
+      return;
     }
   };
 
@@ -31,7 +70,7 @@ export const ChatInput = ({
       className="space-y-2 max-w-4xl mx-auto"
       onSubmit={(e) => {
         e.preventDefault();
-        onSend();
+        handleSend();
       }}
       aria-label="Send message form"
     >
@@ -45,6 +84,7 @@ export const ChatInput = ({
           value={inputText}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={disabled ? "Cannot send messages..." : "Type your message..."}
           className="flex-1"
           maxLength={VALIDATION.MAX_MESSAGE_LENGTH}
@@ -54,8 +94,8 @@ export const ChatInput = ({
         />
         <Button
           type="submit"
-          onClick={onSend}
-          disabled={!inputText.trim() || disabled}
+          onClick={handleSend}
+          disabled={!inputText.trim() || disabled || (!hasSentMessage && !canSendFirstMessage)}
           size="icon"
           className="bg-primary hover:bg-primary/90"
           aria-label="Send message"

@@ -94,10 +94,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check room is active
+    // Check room is active and get creation time
     const { data: room, error: roomError } = await supabase
       .from('chat_rooms')
-      .select('status')
+      .select('status, created_at, session_a, session_b')
       .eq('id', room_id)
       .single();
 
@@ -121,6 +121,63 @@ Deno.serve(async (req) => {
           status: 200,
         }
       );
+    }
+
+    // Track quick exits (rooms ended within 30 seconds)
+    const roomDuration = Date.now() - new Date(room.created_at).getTime();
+    const isQuickExit = roomDuration < 30000; // 30 seconds
+
+    if (isQuickExit) {
+      console.log('Quick exit detected:', { session_id, room_id, duration: roomDuration });
+      
+      // Fetch current values
+      const { data: userSession } = await supabase
+        .from('guest_sessions')
+        .select('quick_exits, reputation_score')
+        .eq('id', session_id)
+        .single();
+
+      if (userSession) {
+        const newQuickExits = (userSession.quick_exits || 0) + 1;
+        
+        // Update quick_exits counter and apply reputation penalty
+        await supabase
+          .from('guest_sessions')
+          .update({
+            quick_exits: newQuickExits,
+            last_quick_exit: new Date().toISOString(),
+            reputation_score: (userSession.reputation_score || 0) - 1
+          })
+          .eq('id', session_id);
+
+        // Check if user has too many quick exits (5+)
+        if (newQuickExits >= 5) {
+          // Apply 30-minute cooldown for serial room hoppers
+          const cooldownEnd = new Date(Date.now() + 1800000); // 30 minutes
+          await supabase
+            .from('guest_sessions')
+            .update({ next_match_at: cooldownEnd.toISOString() })
+            .eq('id', session_id);
+          
+          console.log('Applied cooldown for quick exit pattern:', session_id);
+        }
+      }
+    } else {
+      // Reward completed chats with +1 reputation
+      const { data: userSession } = await supabase
+        .from('guest_sessions')
+        .select('reputation_score')
+        .eq('id', session_id)
+        .single();
+
+      if (userSession) {
+        await supabase
+          .from('guest_sessions')
+          .update({
+            reputation_score: (userSession.reputation_score || 0) + 1
+          })
+          .eq('id', session_id);
+      }
     }
 
     // End the chat

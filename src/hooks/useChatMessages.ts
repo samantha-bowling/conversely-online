@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
-import { TIMING } from "@/config/constants";
 import type { MessagePayload } from "@/types";
+import { useEphemeralMessages } from "./useEphemeralMessages";
 
 export interface Message {
   id: string;
@@ -10,6 +10,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   fading?: boolean;
+  remaining?: number;
 }
 
 interface UseChatMessagesReturn {
@@ -23,7 +24,9 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAnnouncement, setMessageAnnouncement] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fadeTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Use consolidated timer hook
+  useEphemeralMessages({ messages, setMessages });
 
   // Subscribe to messages
   useEffect(() => {
@@ -57,31 +60,12 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
           if (sender === "other") {
             setMessageAnnouncement(`New message received: ${newMsg.content}`);
           }
-
-          // Start fade timer
-          const fadeTimer = setTimeout(() => {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === message.id ? { ...m, fading: true } : m))
-            );
-          }, TIMING.MESSAGE_FADE_START);
-
-          fadeTimersRef.current.set(message.id, fadeTimer);
-
-          // Auto-delete after timeout (handled by DB, but clean up UI)
-          setTimeout(() => {
-            setMessages((prev) => prev.filter((m) => m.id !== message.id));
-            const timer = fadeTimersRef.current.get(message.id);
-            if (timer) clearTimeout(timer);
-            fadeTimersRef.current.delete(message.id);
-          }, TIMING.MESSAGE_AUTO_DELETE);
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
-      fadeTimersRef.current.forEach((timer) => clearTimeout(timer));
-      fadeTimersRef.current.clear();
     };
   }, [roomId, session]);
 

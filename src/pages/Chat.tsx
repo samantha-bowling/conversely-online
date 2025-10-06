@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
@@ -14,6 +14,8 @@ import { ChatGuidelines } from "@/components/chat/ChatGuidelines";
 import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatMessages } from "@/hooks/useChatMessages";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
 
 const Chat = () => {
@@ -23,9 +25,18 @@ const Chat = () => {
   const [showGuidelines, setShowGuidelines] = useState(true);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
   const [currentPrompt] = useState(getRandomPrompt);
+  const [showExpiryBanner, setShowExpiryBanner] = useState(true);
 
   const { roomId, roomStatus, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
   const { messages, messageAnnouncement, messagesEndRef } = useChatMessages(roomId);
+
+  // Auto-hide expiry banner after first message
+  useEffect(() => {
+    if (messages.length > 0) {
+      const timer = setTimeout(() => setShowExpiryBanner(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length]);
 
   const handleSend = async () => {
     if (!inputText.trim() || !roomId || !session) return;
@@ -151,6 +162,18 @@ const Chat = () => {
         onEndChat={handleEndChat}
       />
 
+      {/* Expiry Banner */}
+      {showExpiryBanner && roomStatus === "active" && (
+        <div className="px-4 pt-2">
+          <Alert className="border-muted">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              Messages automatically disappear after 60 seconds for privacy.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {/* Messages */}
       <main 
         className="flex-1 overflow-y-auto p-4 space-y-4" 
@@ -171,6 +194,7 @@ const Chat = () => {
             sender={message.sender}
             text={message.text}
             fading={message.fading}
+            remaining={message.remaining}
           />
         ))}
         <div ref={messagesEndRef} />

@@ -5,8 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { recordAcceptance, markAgeGateSeen } from '@/utils/legalAcceptance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, Info } from 'lucide-react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface AgeGateProps {
   open: boolean;
@@ -101,8 +102,9 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+    <TooltipProvider>
+      <Dialog open={open} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Welcome to Conversely</DialogTitle>
           <DialogDescription>
@@ -130,10 +132,17 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
 
           {/* Date of Birth */}
           <div className="space-y-3">
-            <Label>Date of Birth</Label>
-            <p className="text-sm text-muted-foreground">
-              You must be 16 years or older to use Conversely
-            </p>
+            <div className="flex items-center gap-1.5">
+              <Label>Date of Birth</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You must be 16 years or older to use Conversely</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             
             <div className="grid grid-cols-3 gap-3">
               {/* Day Dropdown */}
@@ -243,5 +252,6 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
       </DialogContent>
       <LegalSheet />
     </Dialog>
+    </TooltipProvider>
   );
 };

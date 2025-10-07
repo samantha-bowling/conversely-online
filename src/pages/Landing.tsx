@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { ConversationButton } from "@/components/ConversationButton";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSession } from "@/contexts/SessionContext";
 import { AgeGate } from "@/components/AgeGate";
-import { hasSeenAgeGate } from "@/utils/legalAcceptance";
+import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
 import { Footer } from "@/components/Footer";
+
 const Landing = () => {
   const navigate = useNavigate();
-  const {
-    session,
-    loading
-  } = useSession();
+  const { session, loading } = useSession();
   const [showAgeGate, setShowAgeGate] = useState(false);
+  const [needsLegalUpdate, setNeedsLegalUpdate] = useState(false);
+
   const handleStartClick = () => {
-    if (!hasSeenAgeGate()) {
+    const needsUpdate = needsReAcceptance();
+    if (!hasSeenAgeGate() || needsUpdate) {
       setShowAgeGate(true);
+      setNeedsLegalUpdate(needsUpdate);
     } else {
       navigate("/survey");
     }
@@ -50,10 +52,15 @@ const Landing = () => {
       </footer>
 
       {/* Age Gate Modal */}
-      <AgeGate open={showAgeGate} onAccept={() => {
-      setShowAgeGate(false);
-      navigate("/survey");
-    }} onClose={() => setShowAgeGate(false)} />
+      <AgeGate 
+        open={showAgeGate} 
+        onAccept={() => {
+          setShowAgeGate(false);
+          navigate("/survey");
+        }} 
+        onClose={() => setShowAgeGate(false)}
+        needsLegalUpdate={needsLegalUpdate}
+      />
     </div>;
 };
 export default Landing;

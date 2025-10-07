@@ -10,6 +10,7 @@ interface LegalDocumentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   document: 'terms' | 'privacy';
+  onDocumentViewed?: () => void;
 }
 
 const DOCUMENT_CONFIG = {
@@ -25,7 +26,7 @@ const DOCUMENT_CONFIG = {
   },
 };
 
-export const LegalDocumentSheet = ({ open, onOpenChange, document }: LegalDocumentSheetProps) => {
+export const LegalDocumentSheet = ({ open, onOpenChange, document, onDocumentViewed }: LegalDocumentSheetProps) => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -36,6 +37,9 @@ export const LegalDocumentSheet = ({ open, onOpenChange, document }: LegalDocume
     if (open) {
       setLoading(true);
       setError(false);
+      
+      // Notify parent that document is being viewed
+      onDocumentViewed?.();
       
       fetch(config.path)
         .then((res) => {
@@ -51,7 +55,7 @@ export const LegalDocumentSheet = ({ open, onOpenChange, document }: LegalDocume
           setLoading(false);
         });
     }
-  }, [open, config.path]);
+  }, [open, config.path, onDocumentViewed]);
 
   const handleRetry = () => {
     setError(false);

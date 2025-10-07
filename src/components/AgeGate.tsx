@@ -1,18 +1,20 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { recordAcceptance, markAgeGateSeen } from '@/utils/legalAcceptance';
+import { recordAcceptance, markAgeGateSeen, getAcceptance } from '@/utils/legalAcceptance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Check, Info } from 'lucide-react';
+import { AlertCircle, Check, Info, MapPin, Loader2 } from 'lucide-react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AgeGateProps {
   open: boolean;
   onAccept: () => void;
   onClose?: () => void;
+  needsLegalUpdate?: boolean;
 }
 
 const COUNTRIES = [
@@ -80,12 +82,62 @@ const calculateAge = (day: string, month: string, year: string): number => {
   return age;
 };
 
-export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
+export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: AgeGateProps) => {
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
   const [month, setMonth] = useState<string>('');
   const [year, setYear] = useState<string>('');
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
+  const [detectedCountryName, setDetectedCountryName] = useState<string>('');
+  const [manualSelection, setManualSelection] = useState(false);
+  const [viewedTerms, setViewedTerms] = useState(false);
+  const [viewedPrivacy, setViewedPrivacy] = useState(false);
+
+  // Auto-detect location on mount
+  useEffect(() => {
+    if (open && !manualSelection && !country) {
+      detectLocation();
+    }
+  }, [open, manualSelection]);
+
+  // Pre-fill country from existing acceptance if returning user needs to re-accept
+  useEffect(() => {
+    if (open && needsLegalUpdate) {
+      const existing = getAcceptance();
+      if (existing?.country) {
+        setCountry(existing.country);
+        setLocationDetected(true);
+      }
+    }
+  }, [open, needsLegalUpdate]);
+
+  const detectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-user-location');
+      
+      if (error) throw error;
+      
+      if (data?.country) {
+        setCountry(data.country);
+        setDetectedCountryName(data.countryName || '');
+        setLocationDetected(true);
+      }
+    } catch (error) {
+      console.error('Failed to detect location:', error);
+      // Graceful fallback - user can select manually
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  const handleManualSelection = () => {
+    setManualSelection(true);
+    setLocationDetected(false);
+    setCountry('');
+  };
 
   // Computed eligibility
   const isEligible = useMemo(() => {
@@ -93,13 +145,26 @@ export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
     return calculateAge(day, month, year) >= 16;
   }, [day, month, year]);
 
+  // Check if legal documents have been viewed
+  const legalDocsViewed = viewedTerms && viewedPrivacy;
+
   const handleContinue = () => {
-    if (country && day && month && year && isEligible) {
+    if (country && day && month && year && isEligible && legalDocsViewed) {
       // Validate and discard DOB - only record country
       recordAcceptance(country);
       markAgeGateSeen();
       onAccept();
     }
+  };
+
+  const handleOpenTerms = () => {
+    openTerms();
+    setViewedTerms(true);
+  };
+
+  const handleOpenPrivacy = () => {
+    openPrivacy();
+    setViewedPrivacy(true);
   };
 
   return (
@@ -114,12 +179,33 @@ export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Legal Update Alert (for returning users) */}
+          {needsLegalUpdate && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Legal Documents Updated</strong>
+                <p className="mt-1 text-sm">
+                  Our Terms of Service or Privacy Policy have been updated. Please review the updated documents below.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Country Selection */}
           <div className="space-y-2">
             <Label htmlFor="country">Where are you located?</Label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger id="country">
-                <SelectValue placeholder="Select your country" />
+            
+            {detectingLocation && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Detecting location...</span>
+              </div>
+            )}
+
+            <Select value={country} onValueChange={setCountry} disabled={detectingLocation}>
+              <SelectTrigger id="country" className="relative">
+                <SelectValue placeholder={detectingLocation ? "Detecting..." : "Select your country"} />
               </SelectTrigger>
               <SelectContent>
                 {COUNTRIES.map((c) => (
@@ -129,6 +215,23 @@ export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
                 ))}
               </SelectContent>
             </Select>
+
+            {locationDetected && !manualSelection && detectedCountryName && (
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>Detected: {detectedCountryName}</span>
+                </div>
+                <Button 
+                  variant="link" 
+                  size="sm"
+                  onClick={handleManualSelection}
+                  className="h-auto p-0 text-xs"
+                >
+                  Select manually instead
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Date of Birth */}
@@ -219,35 +322,67 @@ export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
             )}
           </div>
 
-          {/* Legal Links */}
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p>By continuing, you agree to our:</p>
-            <div className="flex gap-2">
+          {/* Legal Document Review */}
+          <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
+            <p className="text-sm font-medium">Please review our legal documents:</p>
+            
+            <div className="space-y-2">
+              {/* Terms of Service */}
               <Button
-                variant="link"
-                onClick={openTerms}
-                className="p-0 h-auto text-sm text-primary hover:underline"
+                variant="outline"
+                onClick={handleOpenTerms}
+                className="w-full justify-between h-auto py-3 px-4"
               >
-                Terms of Service
+                <div className="flex items-center gap-2">
+                  {viewedTerms ? (
+                    <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
+                  )}
+                  <span className="text-sm font-medium">Terms of Service</span>
+                </div>
+                <span className="text-xs text-muted-foreground">View →</span>
               </Button>
-              <span>•</span>
+
+              {/* Privacy Policy */}
               <Button
-                variant="link"
-                onClick={openPrivacy}
-                className="p-0 h-auto text-sm text-primary hover:underline"
+                variant="outline"
+                onClick={handleOpenPrivacy}
+                className="w-full justify-between h-auto py-3 px-4"
               >
-                Privacy Policy
+                <div className="flex items-center gap-2">
+                  {viewedPrivacy ? (
+                    <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
+                  )}
+                  <span className="text-sm font-medium">Privacy Policy</span>
+                </div>
+                <span className="text-xs text-muted-foreground">View →</span>
               </Button>
             </div>
+
+            {legalDocsViewed && (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500 pt-1">
+                <Check className="h-4 w-4" />
+                <span>Both documents viewed</span>
+              </div>
+            )}
+
+            {!legalDocsViewed && (
+              <p className="text-xs text-muted-foreground pt-1">
+                Click each link to review before accepting
+              </p>
+            )}
           </div>
 
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
-            disabled={!country || !day || !month || !year || !isEligible}
+            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed}
             className="w-full"
           >
-            Continue to Conversely
+            Accept ToS and Privacy Policy
           </Button>
         </div>
       </DialogContent>

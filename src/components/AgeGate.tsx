@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface AgeGateProps {
   open: boolean;
   onAccept: () => void;
+  onClose?: () => void;
 }
 
 const COUNTRIES = [
@@ -79,7 +80,7 @@ const calculateAge = (day: string, month: string, year: string): number => {
   return age;
 };
 
-export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
+export const AgeGate = ({ open, onAccept, onClose }: AgeGateProps) => {
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
@@ -103,7 +104,7 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
 
   return (
     <TooltipProvider>
-      <Dialog open={open} onOpenChange={() => {}}>
+      <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose?.()}>
         <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Welcome to Conversely</DialogTitle>

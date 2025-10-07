@@ -54,6 +54,7 @@ const Landing = () => {
           setShowAgeGate(false);
           navigate("/survey");
         }}
+        onClose={() => setShowAgeGate(false)}
       />
     </div>;
 };

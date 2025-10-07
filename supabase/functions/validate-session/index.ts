@@ -36,63 +36,53 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
-    const { session_id } = body;
-
-    // Rate limiting: 100 validation requests per minute per IP
-    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitKey = `validate-session:${clientIp}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 100, 60000); // 100 per minute
-
-    if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for IP:', clientIp);
+    // Extract and validate JWT from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({
-          error: 'Too many validation requests',
-          retry_after: rateLimit.retryAfter,
-        }),
-        {
-          headers: securityHeaders,
-          status: 429,
-        }
+        JSON.stringify({ valid: false, error: 'Unauthorized - missing auth token' }),
+        { headers: securityHeaders, status: 401 }
       );
     }
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!session_id || !uuidRegex.test(session_id)) {
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    
+    if (userError || !user) {
+      console.error('JWT validation error:', userError);
       return new Response(
-        JSON.stringify({ valid: false, error: 'Invalid session ID format' }),
-        { headers: securityHeaders, status: 400 }
+        JSON.stringify({ valid: false, error: 'Invalid auth token' }),
+        { headers: securityHeaders, status: 401 }
       );
     }
 
-    console.log('Validating session:', session_id);
+    // Look up guest session by user_id
+    const { data: session, error } = await supabase
+      .from('guest_sessions')
+      .select('id, username, avatar, expires_at')
+      .eq('user_id', user.id)
+      .single();
 
-    const result = await validateSession(supabase, session_id);
-
-    if (!result.valid) {
-      console.log('Session validation failed:', result.error);
+    if (error || !session) {
       return new Response(
-        JSON.stringify({ valid: false, error: result.error }),
-        {
-          headers: securityHeaders,
-          status: 401,
-        }
+        JSON.stringify({ valid: false, error: 'Session not found' }),
+        { headers: securityHeaders, status: 404 }
       );
     }
 
-    console.log('Session validated successfully:', result.session?.id);
+    // Check if expired
+    if (new Date(session.expires_at) <= new Date()) {
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Session expired' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    console.log('Session validated for user:', user.id);
 
     return new Response(
-      JSON.stringify({
-        valid: true,
-        session: result.session,
-      }),
-      {
-        headers: securityHeaders,
-        status: 200,
-      }
+      JSON.stringify({ valid: true, session }),
+      { headers: securityHeaders, status: 200 }
     );
   } catch (error) {
     console.error('Error validating session:', error);

@@ -72,21 +72,39 @@ Deno.serve(async (req) => {
     const username = generateUsername();
     const avatar = generateAvatar();
 
+    // Create anonymous auth user
+    const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+    
+    if (authError || !authData.user || !authData.session) {
+      console.error('Anonymous auth error:', authError);
+      throw new Error('Failed to create authentication');
+    }
+
+    // Create guest session linked to auth user
     const { data: session, error } = await supabase
       .from('guest_sessions')
       .insert({
         username,
         avatar,
+        user_id: authData.user.id,
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    console.log('Created guest session:', session.id);
+    console.log('Created guest session:', session.id, 'for user:', authData.user.id);
 
+    // Return both session data and auth tokens
     return new Response(
-      JSON.stringify(session),
+      JSON.stringify({
+        ...session,
+        auth_session: {
+          access_token: authData.session.access_token,
+          refresh_token: authData.session.refresh_token,
+          user: { id: authData.user.id },
+        },
+      }),
       {
         headers: securityHeaders,
         status: 200,

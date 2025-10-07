@@ -46,16 +46,41 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json();
-    const { session_id } = body;
-
-    // Validate session_id format (UUID)
-    if (!session_id || typeof session_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(session_id)) {
+    // Extract and validate JWT from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'Invalid session ID' }),
-        { headers: securityHeaders, status: 400 }
+        JSON.stringify({ error: 'Unauthorized - missing auth token' }),
+        { headers: securityHeaders, status: 401 }
       );
     }
+
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    
+    if (userError || !user) {
+      console.error('JWT validation error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid auth token' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    // Look up guest session by user_id
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('guest_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (sessionError || !sessionData) {
+      return new Response(
+        JSON.stringify({ error: 'Session not found' }),
+        { headers: securityHeaders, status: 404 }
+      );
+    }
+
+    const session_id = sessionData.id;
 
     // Rate limiting: 20 match attempts per 5 minutes per session
     const rateLimitKey = `match-opposite:${session_id}`;
@@ -92,11 +117,7 @@ Deno.serve(async (req) => {
     }
 
     // Check user session and behavioral flags
-    const { data: session } = await supabase
-      .from('guest_sessions')
-      .select('next_match_at, times_blocked, reputation_score')
-      .eq('id', session_id)
-      .single();
+    const session = sessionData;
 
     if (!session) {
       return new Response(

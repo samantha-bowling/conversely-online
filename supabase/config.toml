@@ -4,24 +4,27 @@ project_id = "rlsontubfdpqzhoqezks"
 verify_jwt = false
 
 [functions.match-opposite]
-verify_jwt = false
+verify_jwt = true
 
 [functions.validate-session]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-message]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-room-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.end-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.block-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.maintenance]
+verify_jwt = false
+
+[functions.get-user-location]
 verify_jwt = false
 
 [functions.maintenance.schedule]

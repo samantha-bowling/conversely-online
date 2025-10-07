@@ -36,8 +36,44 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Extract and validate JWT from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - missing auth token' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    const jwt = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    
+    if (userError || !user) {
+      console.error('JWT validation error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid auth token' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    // Look up guest session by user_id
+    const { data: session, error: sessionError } = await supabase
+      .from('guest_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (sessionError || !session) {
+      return new Response(
+        JSON.stringify({ error: 'Session not found' }),
+        { headers: securityHeaders, status: 404 }
+      );
+    }
+
+    const session_id = session.id;
+    
     const body = await req.json();
-    const { session_id, room_id } = body;
+    const { room_id } = body;
 
     // Validate UUIDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

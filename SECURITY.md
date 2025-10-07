@@ -1,9 +1,10 @@
 # Security Architecture - Conversely
 
 ## Overview
-Conversely uses a **guest session architecture** with a hybrid security model:
-- **Edge Functions** enforce authorization (session validation, rate limiting, content filtering)
-- **RLS Policies** provide defense-in-depth and prevent unauthorized writes
+Conversely uses **Supabase Anonymous Authentication** with a defense-in-depth security model:
+- **Anonymous Auth** provides proper `auth.uid()` for RLS policies without requiring user signup
+- **Edge Functions** enforce business logic (matching, content validation, rate limiting)
+- **RLS Policies** provide database-level access control with explicit DENY policies
 - **Input Validation** happens both client-side (UX) and server-side (security)
 
 ## Completed Security Phases
@@ -19,13 +20,19 @@ Conversely uses a **guest session architecture** with a hybrid security model:
   - End chat: 10/hour per session
 - Request size limits (1KB max)
 
-### ✅ Phase 2-7: RLS Policies (Fixed)
-- **guest_sessions**: Only visible to active chat partners
-- **survey_answers**: Only visible to matched partners in active rooms
-- **messages**: Only readable in active rooms, can only insert to active rooms
-- **chat_rooms**: Read-only for clients (updates blocked), edge functions handle changes
-- **blocked_pairs**: Readable (required for matching algorithm)
-- **reflections**: Write-only (no SELECT policy)
+### ✅ Phase 2-4: RLS Policies with auth.uid()
+- **guest_sessions**: Users can only view/update their own session
+- **survey_answers**: Users can only view their own answers, read partner answers in active rooms
+- **messages**: Users can only read messages in rooms they're part of, insert to their active rooms
+- **chat_rooms**: Users can only read rooms they're a participant in
+- **blocked_pairs**: Users can only read pairs involving themselves
+- **reflections**: Write-only (users can only insert their own reflections)
+
+### ✅ Phase 5: Explicit DENY Policies
+- Added explicit `USING (false)` policies for all UPDATE/DELETE operations
+- Ensures all mutations go through Edge Functions with service role
+- Prevents any client-side data manipulation at database level
+- Applied to: guest_sessions, survey_answers, messages, blocked_pairs, chat_rooms
 
 ### ✅ Phase 5: Input Validation Enhancement
 - Enhanced pattern detection (spam, emojis, zero-width chars, HTML tags)
@@ -41,31 +48,29 @@ Conversely uses a **guest session architecture** with a hybrid security model:
 - Real-time content checks before sending
 - User-friendly error messages
 
-## Security Model Trade-offs
+## Security Model
 
-### Guest Session Architecture Limitations
-Without traditional authentication (`auth.uid()`), we cannot:
-1. ❌ Restrict `chat_rooms` SELECT to only participants
-2. ❌ Prevent users from seeing all active session usernames/avatars
-3. ❌ Hide the existence of active chat rooms
+### Anonymous Authentication Benefits
+Using Supabase Anonymous Auth provides:
+1. ✅ Proper `auth.uid()` for RLS policies without user signup
+2. ✅ Session-based access control at database level
+3. ✅ Users can only access their own data and active room data
+4. ✅ Prevents unauthorized reads across sessions
+5. ✅ Standard Supabase auth patterns work out of the box
 
-### Why These Are Acceptable
-1. **Privacy by Design**: Messages auto-delete after 60 seconds
-2. **Minimal Data**: Only username/avatar exposed (no email, real name, etc.)
-3. **Edge Function Protection**: All writes validated by server-side code
-4. **No Authentication State**: Users can't be tracked across sessions
+### Privacy by Design
+1. **Ephemeral Data**: Messages auto-delete after 60 seconds, rooms after 2 minutes
+2. **Minimal Collection**: Only username (random), avatar, survey answers, and temporary messages
+3. **Anonymous Identity**: No email, phone, or real names collected
+4. **Session Isolation**: Each anonymous session is independent with unique `auth.uid()`
+5. **No Tracking**: Users can't be tracked across sessions
 
-### Alternative: Anonymous Auth
-If stricter privacy is needed, implement Supabase Anonymous Auth:
-```sql
--- Link guest_sessions to auth.users
-ALTER TABLE guest_sessions ADD COLUMN user_id UUID REFERENCES auth.users(id);
-
--- Then use auth.uid() in RLS policies
-CREATE POLICY "Users see own session"
-  ON guest_sessions FOR SELECT
-  USING (user_id = auth.uid());
-```
+### Defense-in-Depth Layers
+1. **Client-side validation**: Immediate user feedback, character limits
+2. **Edge Functions**: Business logic, rate limiting, content filtering
+3. **RLS Policies**: Database-level access control with `auth.uid()`
+4. **Explicit DENY policies**: Prevent all client-side UPDATE/DELETE operations
+5. **Auto-deletion**: Temporary data storage with automatic cleanup
 
 ## Security Checklist
 
@@ -80,17 +85,17 @@ CREATE POLICY "Users see own session"
 - [x] Message/feedback length limits
 - [x] HTML/script tag detection
 
-### ⚠️ Known Limitations (By Design)
-- [ ] chat_rooms visible to all (required for realtime)
-- [ ] Guest sessions visible to active room users
-- [ ] blocked_pairs readable (required for matching)
+### ⚠️ Acceptable Trade-offs (By Design)
+- [x] chat_rooms visible to participants only (RLS enforced)
+- [x] Guest sessions visible only to owner and active room partner
+- [x] blocked_pairs readable only to involved users (required for matching)
 
 ### 🔄 Future Enhancements
-- [ ] Implement anonymous authentication
-- [ ] Add IP geolocation blocking
-- [ ] Enhanced spam detection (ML-based)
-- [ ] Automated abuse reporting
-- [ ] Session fingerprinting
+- [ ] Add IP geolocation blocking for compliance
+- [ ] Enhanced spam detection (ML-based pattern recognition)
+- [ ] Automated abuse reporting with threshold triggers
+- [ ] Session fingerprinting for advanced bot detection
+- [ ] Content moderation dashboard for manual review
 
 ## Monitoring & Maintenance
 

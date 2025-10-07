@@ -1,5 +1,5 @@
 import { ConversationButton } from "@/components/ConversationButton";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useSession } from "@/contexts/SessionContext";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
 const Landing = () => {
@@ -31,6 +31,19 @@ const Landing = () => {
           Takes less than 5 minutes
         </p>
       </div>
+
+      {/* Footer */}
+      <footer className="absolute bottom-4 left-0 right-0">
+        <div className="text-center text-xs text-muted-foreground space-x-2">
+          <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+          <span>•</span>
+          <Link to="/privacy-requests" className="hover:text-foreground transition-colors">Privacy Requests</Link>
+          <span>•</span>
+          <Link to="/report" className="hover:text-foreground transition-colors">Report Abuse</Link>
+        </div>
+      </footer>
     </div>;
 };
 export default Landing;

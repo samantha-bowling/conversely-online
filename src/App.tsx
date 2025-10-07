@@ -8,6 +8,10 @@ import Landing from "./pages/Landing";
 import Survey from "./pages/Survey";
 import Matching from "./pages/Matching";
 import Chat from "./pages/Chat";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import PrivacyRequests from "./pages/PrivacyRequests";
+import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
@@ -22,6 +26,10 @@ const App = () => (
             <Route path="/survey" element={<Survey />} />
             <Route path="/matching" element={<Matching />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/privacy-requests" element={<PrivacyRequests />} />
+            <Route path="/report" element={<Report />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

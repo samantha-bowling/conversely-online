@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES } from "@/config/constants";
 import { toast } from "sonner";
+import { AgeGate } from "@/components/AgeGate";
+import { LegalReacceptanceDialog } from "@/components/LegalReacceptanceDialog";
+import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
 import type { CreateSessionResponse } from '@/types';
 
 interface Session {
@@ -23,6 +26,8 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAgeGate, setShowAgeGate] = useState(false);
+  const [showReacceptance, setShowReacceptance] = useState(false);
 
   const createNewSession = useCallback(async () => {
     try {
@@ -74,6 +79,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     refreshSession();
+
+    // Check if age gate needs to be shown
+    if (!hasSeenAgeGate()) {
+      setShowAgeGate(true);
+    } else if (needsReAcceptance()) {
+      setShowReacceptance(true);
+    }
   }, [refreshSession]);
 
   // Monitor session expiry
@@ -102,8 +114,28 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [session?.expires_at, refreshSession]);
 
+  const handleAgeGateAccept = () => {
+    setShowAgeGate(false);
+  };
+
+  const handleReacceptanceAccept = () => {
+    setShowReacceptance(false);
+  };
+
+  const handleReacceptanceDecline = () => {
+    toast.error("You must accept the updated terms to continue using Conversely");
+    // Optionally redirect to home or clear session
+    window.location.href = "/";
+  };
+
   return (
     <SessionContext.Provider value={{ session, loading, refreshSession }}>
+      <AgeGate open={showAgeGate} onAccept={handleAgeGateAccept} />
+      <LegalReacceptanceDialog
+        open={showReacceptance}
+        onAccept={handleReacceptanceAccept}
+        onDecline={handleReacceptanceDecline}
+      />
       {children}
     </SessionContext.Provider>
   );

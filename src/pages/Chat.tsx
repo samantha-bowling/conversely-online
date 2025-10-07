@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
@@ -222,31 +222,44 @@ const Chat = () => {
       </main>
 
       {/* Input */}
-      <footer className="border-t border-border p-4 bg-card" role="contentinfo">
-        {roomStatus === "ended" ? (
-          <div className="text-center text-muted-foreground py-4">
-            <p>Conversation has ended</p>
+      <footer className="border-t border-border bg-card" role="contentinfo">
+        <div className="p-4">
+          {roomStatus === "ended" ? (
+            <div className="text-center text-muted-foreground py-4">
+              <p>Conversation has ended</p>
+            </div>
+          ) : (
+            <>
+              {partnerTyping && (
+                <div className="text-sm text-muted-foreground mb-2 animate-pulse" aria-live="polite">
+                  {partnerUsername} is typing...
+                </div>
+              )}
+              <ChatInput
+                inputText={inputText}
+                onInputChange={(text) => {
+                  setInputText(text);
+                  if (text.length > 0) {
+                    announceTyping();
+                  }
+                }}
+                onSend={handleSend}
+                disabled={roomStatus === "ended" || isSending || connectionStatus !== "connected"}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Footer Links */}
+        <div className="border-t border-border py-2 px-4">
+          <div className="text-center text-xs text-muted-foreground space-x-2">
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <span>•</span>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <span>•</span>
+            <Link to="/report" className="hover:text-foreground transition-colors">Report</Link>
           </div>
-        ) : (
-          <>
-            {partnerTyping && (
-              <div className="text-sm text-muted-foreground mb-2 animate-pulse" aria-live="polite">
-                {partnerUsername} is typing...
-              </div>
-            )}
-            <ChatInput
-              inputText={inputText}
-              onInputChange={(text) => {
-                setInputText(text);
-                if (text.length > 0) {
-                  announceTyping();
-                }
-              }}
-              onSend={handleSend}
-              disabled={roomStatus === "ended" || isSending || connectionStatus !== "connected"}
-            />
-          </>
-        )}
+        </div>
       </footer>
     </div>
   );

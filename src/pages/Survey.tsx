@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,8 @@ import { ChevronLeft } from "lucide-react";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES } from "@/config/constants";
 import { getRandomizedQuestions } from "@/config/survey";
+import { isAcceptanceCurrent } from "@/utils/legalAcceptance";
+import { toast } from "sonner";
 import type { TablesInsert } from '@/integrations/supabase/types';
 
 const Survey = () => {
@@ -16,6 +18,7 @@ const Survey = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [progressAnnouncement, setProgressAnnouncement] = useState("");
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   // Randomize 3-5 questions on mount
   const [questions] = useState(() => getRandomizedQuestions({ min: 3, max: 5 }));
@@ -30,6 +33,18 @@ const Survey = () => {
       setCurrentQuestion(nextQuestion);
       setProgressAnnouncement(`Question ${nextQuestion + 1} of ${questions.length}`);
     } else {
+      // Check legal acceptance before completing survey
+      if (!legalAccepted) {
+        toast.error("Please accept the Terms of Service and Privacy Policy to continue");
+        return;
+      }
+
+      if (!isAcceptanceCurrent()) {
+        toast.error("Please review and accept our legal documents");
+        navigate("/");
+        return;
+      }
+
       // Survey complete, save to database
       setSubmitting(true);
       try {
@@ -117,9 +132,44 @@ const Survey = () => {
         </fieldset>
       </main>
 
+      {/* Legal Acceptance */}
+      {currentQuestion === questions.length - 1 && (
+        <div className="pt-8 max-w-lg mx-auto">
+          <label className="flex items-start gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={legalAccepted}
+              onChange={(e) => setLegalAccepted(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm text-muted-foreground">
+              I confirm I am 16 years or older and agree to the{' '}
+              <Link to="/terms" target="_blank" className="text-primary hover:underline">
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+            </span>
+          </label>
+        </div>
+      )}
+
       <p className="text-center text-sm text-muted-foreground pt-8">
         Your answers help us match you with someone who sees things differently
       </p>
+
+      {/* Footer */}
+      <footer className="pt-8">
+        <div className="text-center text-xs text-muted-foreground space-x-2">
+          <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+          <span>•</span>
+          <a href="mailto:hello@conversely.online" className="hover:text-foreground transition-colors">Contact</a>
+        </div>
+      </footer>
     </div>
   );
 };

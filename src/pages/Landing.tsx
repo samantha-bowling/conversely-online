@@ -1,13 +1,22 @@
+import { useState } from "react";
 import { ConversationButton } from "@/components/ConversationButton";
 import { useNavigate, Link } from "react-router-dom";
 import { useSession } from "@/contexts/SessionContext";
+import { AgeGate } from "@/components/AgeGate";
+import { hasSeenAgeGate } from "@/utils/legalAcceptance";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
 const Landing = () => {
   const navigate = useNavigate();
-  const {
-    session,
-    loading
-  } = useSession();
+  const { session, loading } = useSession();
+  const [showAgeGate, setShowAgeGate] = useState(false);
+
+  const handleStartClick = () => {
+    if (!hasSeenAgeGate()) {
+      setShowAgeGate(true);
+    } else {
+      navigate("/survey");
+    }
+  };
   return <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
       <div className="max-w-md w-full space-y-8 text-center">
         <div className="mb-8">
@@ -22,7 +31,7 @@ const Landing = () => {
         </div>
 
         <div className="pt-8">
-          <ConversationButton variant="primary" onClick={() => navigate("/survey")} disabled={loading || !session}>
+          <ConversationButton variant="primary" onClick={handleStartClick} disabled={loading || !session}>
             {loading ? "Preparing..." : "Start a Conversation"}
           </ConversationButton>
         </div>
@@ -44,6 +53,15 @@ const Landing = () => {
           <Link to="/report" className="hover:text-foreground transition-colors">Report Abuse</Link>
         </div>
       </footer>
+
+      {/* Age Gate Modal */}
+      <AgeGate
+        open={showAgeGate}
+        onAccept={() => {
+          setShowAgeGate(false);
+          navigate("/survey");
+        }}
+      />
     </div>;
 };
 export default Landing;

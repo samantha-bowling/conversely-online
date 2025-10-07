@@ -134,7 +134,7 @@ You may end your session at any time by:
 
 ### Governing Law
 
-These Terms are governed by the laws of the State of Delaware, United States, without regard to conflict of law principles.
+These Terms are governed by the laws of the State of Washington, United States, without regard to conflict of law principles.
 
 ### Informal Resolution
 

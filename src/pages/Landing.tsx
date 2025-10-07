@@ -8,9 +8,11 @@ import converselyBanner from "@/assets/conversely-banner-transparent.png";
 import { Footer } from "@/components/Footer";
 const Landing = () => {
   const navigate = useNavigate();
-  const { session, loading } = useSession();
+  const {
+    session,
+    loading
+  } = useSession();
   const [showAgeGate, setShowAgeGate] = useState(false);
-
   const handleStartClick = () => {
     if (!hasSeenAgeGate()) {
       setShowAgeGate(true);
@@ -28,7 +30,7 @@ const Landing = () => {
           <h2 className="text-2xl font-bold">
             Talk with someone who sees things differently
           </h2>
-          <p className="text-muted-foreground text-base leading-relaxed">Short, anonymous conversations with people who have opposite viewpoints. No accounts. No history. Just a moment to converse.</p>
+          <p className="text-muted-foreground text-base leading-relaxed">Short, anonymous conversations with people who are unlike you. No accounts. No history. Just a moment to converse.</p>
         </div>
 
         <div className="pt-8">
@@ -48,14 +50,10 @@ const Landing = () => {
       </footer>
 
       {/* Age Gate Modal */}
-      <AgeGate
-        open={showAgeGate}
-        onAccept={() => {
-          setShowAgeGate(false);
-          navigate("/survey");
-        }}
-        onClose={() => setShowAgeGate(false)}
-      />
+      <AgeGate open={showAgeGate} onAccept={() => {
+      setShowAgeGate(false);
+      navigate("/survey");
+    }} onClose={() => setShowAgeGate(false)} />
     </div>;
 };
 export default Landing;

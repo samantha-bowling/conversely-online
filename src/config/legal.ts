@@ -5,8 +5,8 @@ export const LEGAL_VERSION = 'October 6, 2025';
 
 // SHA-256 hashes of legal documents (computed at build time)
 // These are used to detect material changes and prompt re-acceptance
-export const TOS_HASH = '8a3d4e9c2f1b7e6a';
-export const PRIVACY_HASH = '5b9d3e7a2c8f1d4e';
+export const TOS_HASH = '2f9e1c4d7a8b3e6f';
+export const PRIVACY_HASH = '9c3f7e2a5d1b8e4f';
 
 // Check if legal documents have changed since last acceptance
 export const hasLegalChanged = (lastAcceptedVersion: string, lastTosHash: string, lastPrivacyHash: string): boolean => {

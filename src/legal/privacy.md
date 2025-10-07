@@ -59,7 +59,7 @@ For security, moderation, and debugging, we collect:
 - Creating temporary sessions for platform access
 - Matching you with conversation partners based on survey responses
 - Delivering messages in real-time
-- Enforcing our 15-minute message expiry policy
+- Enforcing our 2-minute message expiry policy
 
 ### 3.2 Safety & Moderation
 
@@ -92,19 +92,19 @@ We do NOT use your data for:
 
 | Data Type | Retention Period | Reason |
 |-----------|------------------|--------|
-| **Messages** | 15 minutes | Privacy by design; messages auto-expire |
+| **Messages** | 2 minutes | Privacy by design; messages auto-expire |
 | **Session Data** | 24 hours | Session expiry; then deleted |
 | **Survey Answers** | 24 hours | Tied to session; deleted with session |
-| **Conversation Rooms** | 15 minutes after end | Room closes when chat ends or expires |
+| **Conversation Rooms** | 2 minutes after end | Room closes when chat ends or expires |
 | **Security Logs** | 60 days | Fraud prevention, abuse investigation |
 | **Error Logs** | 30 days | Debugging and platform stability |
 | **Moderation Flags** | 60 days | Appeals process and policy enforcement |
 
 ### Automatic Deletion
 
-- **Messages:** Deleted automatically 15 minutes after being sent
+- **Messages:** Deleted automatically 2 minutes after being sent
 - **Sessions:** Deleted automatically 24 hours after creation
-- **Rooms:** Closed and deleted 15 minutes after the last message or when a user ends the chat
+- **Rooms:** Closed and deleted 2 minutes after the last message or when a user ends the chat
 
 We do not offer message recovery—once deleted, data is permanently gone.
 
@@ -168,7 +168,7 @@ Depending on your location, you may have the following rights:
 
 - Request a copy of your session data (while active)
 - Export your survey responses and conversation metadata
-- Note: Messages expire after 15 minutes and cannot be recovered
+- Note: Messages expire after 2 minutes and cannot be recovered
 
 ### 7.2 Deletion (GDPR Art. 17, CCPA)
 

@@ -48,8 +48,8 @@ By sending messages through Conversely, you grant us a limited license to:
 
 ### Message Ephemerality
 
-- Messages automatically expire and are deleted after **15 minutes**
-- Conversation rooms close after **15 minutes** or when a user ends the chat
+- Messages automatically expire and are deleted after **2 minutes**
+- Conversation rooms close after **2 minutes** or when a user ends the chat
 - No message history is retained after deletion
 - We cannot recover deleted messages
 
@@ -80,7 +80,7 @@ Your privacy is important to us. Please review our [Privacy Policy](/privacy) to
 
 Key points:
 - We collect minimal data (session ID, username, avatar, survey responses, IP address)
-- Messages are automatically deleted after 15 minutes
+- Messages are automatically deleted after 2 minutes
 - Session data is deleted after 24 hours
 - We do not track users across sessions or devices
 

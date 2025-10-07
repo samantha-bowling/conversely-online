@@ -2,8 +2,12 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Footer } from '@/components/Footer';
+import { useLegalSheet } from '@/hooks/useLegalSheet';
 
 const PrivacyRequests = () => {
+  const { openPrivacy, LegalSheet } = useLegalSheet();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -70,13 +74,26 @@ const PrivacyRequests = () => {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               For more information, see our{' '}
-              <Link to="/privacy" className="text-primary hover:underline">
+              <Button
+                variant="link"
+                onClick={openPrivacy}
+                className="p-0 h-auto text-sm text-primary hover:underline"
+              >
                 Privacy Policy
-              </Link>
+              </Button>
             </p>
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border mt-12 py-8">
+        <div className="container mx-auto px-4">
+          <Footer variant="default" />
+        </div>
+      </footer>
+
+      <LegalSheet />
     </div>
   );
 };

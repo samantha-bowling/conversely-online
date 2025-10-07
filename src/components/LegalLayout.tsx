@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Footer } from '@/components/Footer';
 
 interface LegalLayoutProps {
   children: ReactNode;
@@ -37,15 +38,8 @@ export const LegalLayout = ({ children, title, lastUpdated }: LegalLayoutProps) 
 
       {/* Footer */}
       <footer className="border-t border-border mt-16 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground space-y-2">
-          <div className="flex justify-center gap-4">
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
-            <span>•</span>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <span>•</span>
-            <a href="mailto:hello@conversely.online" className="hover:text-foreground transition-colors">Contact</a>
-          </div>
-          <p>© {new Date().getFullYear()} Conversely. All rights reserved.</p>
+        <div className="container mx-auto px-4">
+          <Footer variant="legal" />
         </div>
       </footer>
     </div>

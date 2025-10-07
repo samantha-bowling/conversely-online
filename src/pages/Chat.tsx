@@ -21,6 +21,8 @@ import { useSessionExpiry } from "@/hooks/useSessionExpiry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
+import { Footer } from "@/components/Footer";
+import { QuickReportSheet } from "@/components/QuickReportSheet";
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -31,6 +33,7 @@ const Chat = () => {
   const [currentPrompt] = useState(getRandomPrompt);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [showReportSheet, setShowReportSheet] = useState(false);
 
   const { roomId, roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
   
@@ -252,15 +255,11 @@ const Chat = () => {
 
         {/* Footer Links */}
         <div className="border-t border-border py-2 px-4">
-          <div className="text-center text-xs text-muted-foreground space-x-2">
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-            <span>•</span>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <span>•</span>
-            <Link to="/report" className="hover:text-foreground transition-colors">Report</Link>
-          </div>
+          <Footer variant="chat" onReportClick={() => setShowReportSheet(true)} />
         </div>
       </footer>
+
+      <QuickReportSheet open={showReportSheet} onOpenChange={setShowReportSheet} />
     </div>
   );
 };

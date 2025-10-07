@@ -3,8 +3,11 @@ import { ChevronLeft, Mail, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useLegalSheet } from '@/hooks/useLegalSheet';
 
 const Report = () => {
+  const { openTerms, LegalSheet } = useLegalSheet();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -88,13 +91,19 @@ const Report = () => {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               Learn more about our policies in the{' '}
-              <Link to="/terms" className="text-primary hover:underline">
+              <Button
+                variant="link"
+                onClick={openTerms}
+                className="p-0 h-auto text-sm text-primary hover:underline"
+              >
                 Terms of Service
-              </Link>
+              </Button>
             </p>
           </div>
         </div>
       </main>
+
+      <LegalSheet />
     </div>
   );
 };

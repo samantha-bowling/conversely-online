@@ -5,6 +5,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { AgeGate } from "@/components/AgeGate";
 import { hasSeenAgeGate } from "@/utils/legalAcceptance";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
+import { Footer } from "@/components/Footer";
 const Landing = () => {
   const navigate = useNavigate();
   const { session, loading } = useSession();
@@ -43,15 +44,7 @@ const Landing = () => {
 
       {/* Footer */}
       <footer className="absolute bottom-4 left-0 right-0">
-        <div className="text-center text-xs text-muted-foreground space-x-2">
-          <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-          <span>•</span>
-          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-          <span>•</span>
-          <Link to="/privacy-requests" className="hover:text-foreground transition-colors">Privacy Requests</Link>
-          <span>•</span>
-          <Link to="/report" className="hover:text-foreground transition-colors">Report Abuse</Link>
-        </div>
+        <Footer variant="default" />
       </footer>
 
       {/* Age Gate Modal */}

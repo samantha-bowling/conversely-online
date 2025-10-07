@@ -10,10 +10,14 @@ import { getRandomizedQuestions } from "@/config/survey";
 import { isAcceptanceCurrent } from "@/utils/legalAcceptance";
 import { toast } from "sonner";
 import type { TablesInsert } from '@/integrations/supabase/types';
+import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { useLegalSheet } from "@/hooks/useLegalSheet";
 
 const Survey = () => {
   const navigate = useNavigate();
   const { session } = useSession();
+  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -144,13 +148,27 @@ const Survey = () => {
             />
             <span className="text-sm text-muted-foreground">
               I confirm I am 16 years or older and agree to the{' '}
-              <Link to="/terms" target="_blank" className="text-primary hover:underline">
+              <Button
+                variant="link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openTerms();
+                }}
+                className="p-0 h-auto text-sm text-primary hover:underline"
+              >
                 Terms of Service
-              </Link>
+              </Button>
               {' '}and{' '}
-              <Link to="/privacy" target="_blank" className="text-primary hover:underline">
+              <Button
+                variant="link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openPrivacy();
+                }}
+                className="p-0 h-auto text-sm text-primary hover:underline"
+              >
                 Privacy Policy
-              </Link>
+              </Button>
             </span>
           </label>
         </div>
@@ -162,14 +180,10 @@ const Survey = () => {
 
       {/* Footer */}
       <footer className="pt-8">
-        <div className="text-center text-xs text-muted-foreground space-x-2">
-          <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-          <span>•</span>
-          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-          <span>•</span>
-          <a href="mailto:hello@conversely.online" className="hover:text-foreground transition-colors">Contact</a>
-        </div>
+        <Footer variant="default" />
       </footer>
+
+      <LegalSheet />
     </div>
   );
 };

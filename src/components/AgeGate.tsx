@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { recordAcceptance, markAgeGateSeen } from '@/utils/legalAcceptance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Check } from 'lucide-react';
+import { useLegalSheet } from '@/hooks/useLegalSheet';
 
 interface AgeGateProps {
   open: boolean;
@@ -78,6 +79,7 @@ const calculateAge = (day: string, month: string, year: string): number => {
 };
 
 export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
+  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
   const [month, setMonth] = useState<string>('');
@@ -211,23 +213,21 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
           <div className="text-sm text-muted-foreground space-y-2">
             <p>By continuing, you agree to our:</p>
             <div className="flex gap-2">
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
+              <Button
+                variant="link"
+                onClick={openTerms}
+                className="p-0 h-auto text-sm text-primary hover:underline"
               >
                 Terms of Service
-              </a>
+              </Button>
               <span>•</span>
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
+              <Button
+                variant="link"
+                onClick={openPrivacy}
+                className="p-0 h-auto text-sm text-primary hover:underline"
               >
                 Privacy Policy
-              </a>
+              </Button>
             </div>
           </div>
 
@@ -241,6 +241,7 @@ export const AgeGate = ({ open, onAccept }: AgeGateProps) => {
           </Button>
         </div>
       </DialogContent>
+      <LegalSheet />
     </Dialog>
   );
 };

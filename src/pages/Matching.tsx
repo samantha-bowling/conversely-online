@@ -21,9 +21,7 @@ const Matching = () => {
       if (!session) return;
 
       try {
-        const { data, error } = await supabase.functions.invoke<MatchOppositeResponse>('match-opposite', {
-          body: { session_id: session.id },
-        });
+        const { data, error } = await supabase.functions.invoke<MatchOppositeResponse>('match-opposite');
 
         if (error) throw error;
 

@@ -72,7 +72,6 @@ const Chat = () => {
     try {
       const { data, error } = await supabase.functions.invoke<SendMessageResponse>('send-message', {
         body: {
-          session_id: session.id,
           room_id: roomId,
           content: messageText,
         },
@@ -102,7 +101,6 @@ const Chat = () => {
     try {
       const { data, error } = await supabase.functions.invoke<EndChatResponse>('end-chat', {
         body: {
-          session_id: session.id,
           room_id: roomId,
         },
       });
@@ -126,7 +124,6 @@ const Chat = () => {
     try {
       const { data, error } = await supabase.functions.invoke<BlockUserResponse>('block-user', {
         body: {
-          session_id: session.id,
           room_id: roomId,
         },
       });

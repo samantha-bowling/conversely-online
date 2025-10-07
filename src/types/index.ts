@@ -9,6 +9,11 @@ export interface CreateSessionResponse {
   username: string;
   avatar: string;
   expires_at: string;
+  auth_session?: {
+    access_token: string;
+    refresh_token: string;
+    user: { id: string };
+  };
 }
 
 export interface MatchOppositeResponse {

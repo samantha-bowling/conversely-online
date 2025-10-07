@@ -43,9 +43,34 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         }
         return;
       }
+
+      // Set Supabase auth session with anonymous user tokens
+      if (data.auth_session) {
+        const { error: authError } = await supabase.auth.setSession({
+          access_token: data.auth_session.access_token,
+          refresh_token: data.auth_session.refresh_token,
+        });
+
+        if (authError) {
+          console.error('Failed to set auth session:', authError);
+          handleError(authError, { 
+            description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
+            logToConsole: true 
+          });
+          return;
+        }
+      }
       
-      localStorage.setItem('guest_session', JSON.stringify(data));
-      setSession(data);
+      // Store guest session data (without auth tokens for security)
+      const sessionData = {
+        id: data.id,
+        username: data.username,
+        avatar: data.avatar,
+        expires_at: data.expires_at,
+      };
+      
+      localStorage.setItem('guest_session', JSON.stringify(sessionData));
+      setSession(sessionData);
     } catch (error) {
       handleError(error, { 
         description: ERROR_MESSAGES.SESSION_CREATE_ERROR,

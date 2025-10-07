@@ -51,7 +51,6 @@ export const useChatRoom = (): UseChatRoomReturn => {
     const fetchRoom = async () => {
       const { data, error } = await supabase.functions.invoke<GetRoomDataResponse>('get-room-data', {
         body: {
-          session_id: session.id,
           room_id: room_id,
         },
       });

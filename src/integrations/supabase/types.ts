@@ -106,6 +106,7 @@ export type Database = {
           quick_exits: number
           reputation_score: number
           times_blocked: number
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -118,6 +119,7 @@ export type Database = {
           quick_exits?: number
           reputation_score?: number
           times_blocked?: number
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -130,6 +132,7 @@ export type Database = {
           quick_exits?: number
           reputation_score?: number
           times_blocked?: number
+          user_id?: string | null
           username?: string
         }
         Relationships: []

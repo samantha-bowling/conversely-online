@@ -134,7 +134,7 @@ You may end your session at any time by:
 
 ### Governing Law
 
-These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+These Terms are governed by the laws of the State of Delaware, United States, without regard to conflict of law principles.
 
 ### Informal Resolution
 
@@ -142,7 +142,7 @@ Before filing any legal claim, you agree to contact us at hello@conversely.onlin
 
 ### Binding Arbitration
 
-Any disputes not resolved informally shall be resolved through binding arbitration in accordance with [Arbitration Rules], except where prohibited by law.
+Any disputes not resolved informally shall be resolved through binding arbitration in accordance with the Commercial Arbitration Rules of the American Arbitration Association (AAA), except where prohibited by law.
 
 ### Class Action Waiver
 

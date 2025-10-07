@@ -118,7 +118,7 @@ Conversely uses the following sub-processors:
 - Hosts our database and backend functions
 - Stores session, survey, and message data
 - Provides real-time messaging infrastructure
-- Located in [Supabase Data Region—to be specified]
+- Located in United States (us-east-1)
 - Subject to Supabase's privacy policy
 
 **hCaptcha** (Bot Prevention)

@@ -1,7 +1,7 @@
 // Timing constants (in milliseconds)
 export const TIMING = {
-  MESSAGE_FADE_START: 40000, // 40 seconds until message starts fading
-  MESSAGE_AUTO_DELETE: 60000, // 60 seconds until message is deleted
+  MESSAGE_FADE_START: 840000, // 14 minutes until message starts fading (14 * 60 * 1000)
+  MESSAGE_AUTO_DELETE: 900000, // 15 minutes until message is deleted (15 * 60 * 1000)
   ROOM_REDIRECT_DELAY: 2000, // 2 seconds delay before redirecting after room ends
   MATCHING_SEARCH_DELAY: 2000, // 2 seconds delay before searching for match
   MATCH_FOUND_REDIRECT: 1500, // 1.5 seconds delay before redirecting to chat

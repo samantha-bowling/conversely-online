@@ -382,7 +382,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
             disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed}
             className="w-full"
           >
-            Accept ToS and Privacy Policy
+            Start Conversing
           </Button>
         </div>
       </DialogContent>

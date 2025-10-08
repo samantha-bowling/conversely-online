@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with ANON key and forward Authorization header
+    // Extract token from Authorization header
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
@@ -84,14 +84,25 @@ Deno.serve(async (req) => {
       );
     }
     
+    const accessToken = authHeader.replace(/^Bearer\s+/i, '');
+
+    // Create client with proper config
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+
+    // CRITICAL: Inject the caller's session so PostgREST uses it
+    await supabase.auth.setSession({ 
+      access_token: accessToken, 
+      refresh_token: '' 
     });
 
     // Verify auth context - ensure we have a valid JWT
-    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser(accessToken);
     
     if (getUserError || !user) {
       console.error('Auth verification failed:', getUserError);
@@ -106,7 +117,7 @@ Deno.serve(async (req) => {
     const username = generateUsername();
     const avatar = generateAvatar();
 
-    // Insert guest session - user_id will be auto-set by trigger from auth.uid()
+    // Insert guest session - user_id will be auto-set by DEFAULT auth.uid()
     const { data: session, error } = await supabase
       .from('guest_sessions')
       .insert({

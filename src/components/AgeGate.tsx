@@ -288,7 +288,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, '');
                     const currentYear = new Date().getFullYear();
-                    if (value === '' || (value.length <= 4 && parseInt(value) >= currentYear - 120 && parseInt(value) <= currentYear)) {
+                    if (value === '' || (value.length <= 4 && parseInt(value) >= currentYear - 120 && parseInt(value) <= currentYear - 16)) {
                       setYear(value);
                     }
                   }}
@@ -320,17 +320,22 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           {/* Legal Document Review */}
           <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Please review our Terms of Service and Privacy Policy to continue</p>
-              {needsLegalUpdate && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Our Terms of Service or Privacy Policy have been updated. Please review the updated documents.</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              <p className="text-sm font-medium">
+                Please review our Terms of Service and Privacy Policy to{' '}
+                <span className="inline-flex items-center gap-1">
+                  continue
+                  {needsLegalUpdate && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Our Terms of Service or Privacy Policy have been updated. Please review the updated documents.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </span>
+              </p>
             </div>
             
             <div className="space-y-2">

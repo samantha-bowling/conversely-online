@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { recordAcceptance, markAgeGateSeen, getAcceptance } from '@/utils/legalAcceptance';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -249,55 +250,62 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
             </div>
             
             <div className="grid grid-cols-3 gap-3">
-              {/* Day Dropdown */}
+              {/* Day Input */}
               <div className="space-y-2">
                 <Label htmlFor="day" className="text-xs">Day</Label>
-                <Select value={day} onValueChange={setDay}>
-                  <SelectTrigger id="day">
-                    <SelectValue placeholder="DD" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getDaysInMonth(month, year).map((d) => (
-                      <SelectItem key={d} value={d.toString()}>
-                        {d}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="day"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="DD"
+                  maxLength={2}
+                  value={day}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 31)) {
+                      setDay(value);
+                    }
+                  }}
+                />
               </div>
 
-              {/* Month Dropdown */}
+              {/* Month Input */}
               <div className="space-y-2">
                 <Label htmlFor="month" className="text-xs">Month</Label>
-                <Select value={month} onValueChange={setMonth}>
-                  <SelectTrigger id="month">
-                    <SelectValue placeholder="Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="month"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="MM"
+                  maxLength={2}
+                  value={month}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 12)) {
+                      setMonth(value);
+                    }
+                  }}
+                />
               </div>
 
-              {/* Year Dropdown */}
+              {/* Year Input */}
               <div className="space-y-2">
                 <Label htmlFor="year" className="text-xs">Year</Label>
-                <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger id="year">
-                    <SelectValue placeholder="YYYY" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getYearRange().map((y) => (
-                      <SelectItem key={y} value={y.toString()}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="year"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY"
+                  maxLength={4}
+                  value={year}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    const currentYear = new Date().getFullYear();
+                    if (value === '' || (value.length <= 4 && parseInt(value) >= currentYear - 120 && parseInt(value) <= currentYear)) {
+                      setYear(value);
+                    }
+                  }}
+                />
               </div>
             </div>
 

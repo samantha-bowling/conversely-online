@@ -16,12 +16,12 @@ interface LegalDocumentSheetProps {
 const DOCUMENT_CONFIG = {
   terms: {
     title: 'Terms of Service',
-    path: '/src/legal/terms.md',
+    path: '/legal/terms.md',
     lastUpdated: 'October 6, 2025',
   },
   privacy: {
     title: 'Privacy Policy',
-    path: '/src/legal/privacy.md',
+    path: '/legal/privacy.md',
     lastUpdated: 'October 6, 2025',
   },
 };

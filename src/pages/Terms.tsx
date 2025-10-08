@@ -8,7 +8,7 @@ const Terms = () => {
 
   useEffect(() => {
     // Import the markdown file
-    fetch('/src/legal/terms.md')
+    fetch('/legal/terms.md')
       .then((res) => res.text())
       .then((text) => setContent(text))
       .catch(() => setContent('# Terms of Service\n\nUnable to load terms. Please contact hello@conversely.online'));

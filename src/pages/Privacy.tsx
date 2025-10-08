@@ -8,7 +8,7 @@ const Privacy = () => {
 
   useEffect(() => {
     // Import the markdown file
-    fetch('/src/legal/privacy.md')
+    fetch('/legal/privacy.md')
       .then((res) => res.text())
       .then((text) => setContent(text))
       .catch(() => setContent('# Privacy Policy\n\nUnable to load privacy policy. Please contact hello@conversely.online'));

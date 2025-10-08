@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SessionProvider } from "./contexts/SessionContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import RequireSession from "@/components/RequireSession";
 import Landing from "./pages/Landing";
 import Survey from "./pages/Survey";
 import Matching from "./pages/Matching";
@@ -23,9 +24,15 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/survey" element={<Survey />} />
-            <Route path="/matching" element={<Matching />} />
-            <Route path="/chat" element={<Chat />} />
+            
+            {/* Protected routes - require valid session */}
+            <Route element={<RequireSession />}>
+              <Route path="/survey" element={<Survey />} />
+              <Route path="/matching" element={<Matching />} />
+              <Route path="/chat/:roomId" element={<Chat />} />
+            </Route>
+            
+            {/* Public routes */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/privacy-requests" element={<PrivacyRequests />} />

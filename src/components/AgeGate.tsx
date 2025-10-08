@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -101,6 +102,9 @@ const calculateAge = (day: string, month: string, year: string): number => {
 };
 
 export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: AgeGateProps) => {
+  const navigate = useNavigate();
+  const mountedRef = useRef(true);
+  
   const handleDocumentViewed = (doc: 'terms' | 'privacy') => {
     if (doc === 'terms') {
       setViewedTerms(true);
@@ -110,7 +114,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   };
 
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet(handleDocumentViewed);
-  const { initializeSession } = useSession();
+  const { ensureAnonAuth, initializeSession } = useSession();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
   const [month, setMonth] = useState<string>('');
@@ -123,7 +127,15 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const [viewedPrivacy, setViewedPrivacy] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
-  const [creatingSession, setCreatingSession] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Unmount safety
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Auto-detect location on mount
   useEffect(() => {
@@ -193,28 +205,55 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const legalDocsAccepted = acceptedTerms && acceptedPrivacy;
 
   const handleContinue = async () => {
-    if (country && day && month && year && isEligible && legalDocsViewed && legalDocsAccepted) {
-      setCreatingSession(true);
+    if (submitting) return; // Prevent double-clicks
+    if (!(country && day && month && year && isEligible && legalDocsViewed && legalDocsAccepted)) return;
+    
+    setSubmitting(true);
+    const start = performance.now();
+    
+    try {
+      // Step 1: Ensure anonymous auth exists
+      console.log('[AgeGate] Step 1: Ensuring anonymous auth...');
+      await ensureAnonAuth();
+      if (!mountedRef.current) return;
       
-      try {
-        // Record acceptance first
-        recordAcceptance(country);
-        markAgeGateSeen();
-        
-        // Create session with consent flag
-        const success = await initializeSession();
-        
-        if (success) {
-          console.log('Session created after age gate acceptance');
-          onAccept();
-        } else {
-          toast.error('Failed to create session. Please try again.');
-        }
-      } catch (error) {
-        console.error('Age gate completion error:', error);
-        toast.error('An error occurred. Please try again.');
-      } finally {
-        setCreatingSession(false);
+      // Step 2: Record legal acceptance
+      console.log('[AgeGate] Step 2: Recording legal acceptance...');
+      recordAcceptance(country);
+      markAgeGateSeen();
+      
+      // Step 3: Preload Survey route in parallel with session creation
+      console.log('[AgeGate] Step 3: Creating session and preloading Survey...');
+      const [sessionData] = await Promise.all([
+        initializeSession(),
+        import('@/pages/Survey').catch(err => {
+          console.warn('[AgeGate] Survey preload failed (non-critical):', err);
+        })
+      ]);
+      
+      if (!mountedRef.current) return;
+      
+      const duration = (performance.now() - start).toFixed(0);
+      console.log(`[AgeGate] Session flow completed (${duration}ms)`);
+      
+      // Step 4: Navigate imperatively
+      onAccept(); // Close the dialog
+      navigate('/survey', { replace: true });
+      
+    } catch (error) {
+      if (!mountedRef.current) return;
+      
+      console.error('[AgeGate] Session creation failed:', error);
+      
+      // Map error to user-facing message
+      const errorMessage = error instanceof Error && error.message.includes('rate')
+        ? 'Too many attempts. Please wait a moment and try again.'
+        : 'Failed to create session. Please try again.';
+      
+      toast.error(errorMessage);
+    } finally {
+      if (mountedRef.current) {
+        setSubmitting(false);
       }
     }
   };
@@ -486,10 +525,14 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
-            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted || creatingSession}
+            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted || submitting}
             className="w-full"
+            style={{
+              pointerEvents: submitting ? 'none' : 'auto'
+            }}
+            aria-busy={submitting}
           >
-            {creatingSession ? (
+            {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Creating your session...

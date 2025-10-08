@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES } from "@/config/constants";
@@ -15,88 +15,117 @@ interface Session {
 interface SessionContextType {
   session: Session | null;
   loading: boolean;
-  initializeSession: () => Promise<boolean>;
+  ensureAnonAuth: () => Promise<void>;
+  initializeSession: () => Promise<Session>;
   refreshSession: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+// Module-level state for de-duplication and generation guard
+let inFlightSession: Promise<Session> | null = null;
+let generationCounter = 0;
+
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const loadingRef = useRef(false);
 
-  const createNewSession = useCallback(async (): Promise<boolean> => {
-    try {
-      console.log('[Session] Creating anonymous auth session...');
-      
-      // 1. Create anonymous auth session in browser (with ANON key)
-      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-      
-      if (authError || !authData.user || !authData.session) {
-        console.error('[Session] Anonymous auth error:', authError);
-        handleError(authError, { 
-          description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
-          logToConsole: true 
-        });
-        return false;
-      }
-      
-      console.log('[Session] Auth session created, user_id:', authData.user.id);
-      
-      // 2. Call edge function - JWT is automatically included in Authorization header
-      const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
-        'create-guest-session',
-        {
-          headers: {
-            'x-consent-given': 'true'
+  /**
+   * Ensure anonymous auth session exists (no-op if already signed in)
+   */
+  const ensureAnonAuth = useCallback(async (): Promise<void> => {
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    
+    if (existingSession?.user) {
+      console.log('[Session] Auth already exists:', existingSession.user.id);
+      return;
+    }
+
+    console.log('[Session] Creating anonymous auth session...');
+    const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+    
+    if (authError || !authData.user || !authData.session) {
+      console.error('[Session] Anonymous auth error:', authError);
+      throw authError || new Error('Failed to create anonymous session');
+    }
+    
+    console.log('[Session] Auth session created, user_id:', authData.user.id);
+  }, []);
+
+  /**
+   * Create a new guest session with generation guard and in-flight de-duplication
+   */
+  const createNewSession = useCallback(async (): Promise<Session> => {
+    // De-duplication: return existing promise if session creation is in-flight
+    if (inFlightSession) {
+      console.log('[Session] Session creation already in progress, returning existing promise');
+      return inFlightSession;
+    }
+
+    const myGeneration = ++generationCounter;
+    console.log('[Session] Starting session creation (generation:', myGeneration, ')');
+
+    inFlightSession = (async (): Promise<Session> => {
+      const start = performance.now();
+
+      try {
+        // Call edge function - JWT is automatically included in Authorization header
+        const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
+          'create-guest-session',
+          {
+            headers: {
+              'x-consent-given': 'true'
+            }
+          }
+        );
+        
+        if (error) {
+          console.error('[Session] Edge function error:', error);
+          if (error.message?.includes('Too many session requests')) {
+            throw new Error(ERROR_MESSAGES.SESSION_RATE_LIMITED);
+          } else {
+            throw new Error(ERROR_MESSAGES.SESSION_CREATE_ERROR);
           }
         }
-      );
-      
-      if (error) {
-        console.error('[Session] Edge function error:', error);
-        // Handle rate limiting
-        if (error.message?.includes('Too many session requests')) {
-          handleError(error, { 
-            description: ERROR_MESSAGES.SESSION_RATE_LIMITED,
-            logToConsole: true 
+        
+        const sessionData: Session = {
+          id: data.id,
+          username: data.username,
+          avatar: data.avatar,
+          expires_at: data.expires_at,
+        };
+
+        // Generation guard: only update state if this is still the current generation
+        if (myGeneration === generationCounter) {
+          setSession(sessionData);
+          try {
+            localStorage.setItem('guest_session', JSON.stringify(sessionData));
+          } catch (storageError) {
+            console.warn('[Session] Failed to persist to localStorage:', storageError);
+          }
+
+          const duration = (performance.now() - start).toFixed(0);
+          console.log(`[Session] Session created successfully (${duration}ms):`, {
+            id: data.id,
+            username: data.username,
+            generation: myGeneration
           });
         } else {
-          handleError(error, { 
-            description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
-            logToConsole: true 
-          });
+          console.log('[Session] Stale generation', myGeneration, 'current:', generationCounter, '- discarding');
         }
-        return false;
+
+        return sessionData;
+      } catch (error) {
+        console.error('[Session] Session creation failed:', error);
+        throw error;
       }
-      
-      // 3. Store guest session data (auth session already set above)
-      const sessionData = {
-        id: data.id,
-        username: data.username,
-        avatar: data.avatar,
-        expires_at: data.expires_at,
-      };
-      
-      localStorage.setItem('guest_session', JSON.stringify(sessionData));
-      setSession(sessionData);
-      
-      console.log('[Session] Session created successfully:', {
-        id: data.id,
-        username: data.username,
-        user_id: authData.user.id,
-        expires_at: data.expires_at
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('[Session] Unexpected error:', error);
-      handleError(error, { 
-        description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
-        logToConsole: true 
-      });
-      return false;
+    })();
+
+    try {
+      return await inFlightSession;
+    } finally {
+      inFlightSession = null;
     }
   }, []);
 
@@ -110,36 +139,93 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const initializeSession = useCallback(async (): Promise<boolean> => {
-    // Prevent concurrent calls
-    if (isCreating) {
-      console.log('[Session] Session creation already in progress');
-      return false;
+  /**
+   * Initialize a new session (public API for components)
+   * Returns the session object and updates context state
+   */
+  const initializeSession = useCallback(async (): Promise<Session> => {
+    if (loadingRef.current) {
+      console.log('[Session] Session initialization already in progress');
+      if (inFlightSession) return inFlightSession;
+      throw new Error('Session initialization in progress');
     }
     
-    setIsCreating(true);
+    loadingRef.current = true;
     setLoading(true);
     
     try {
-      const success = await createNewSession();
-      console.log('[Session] Initialize result:', success);
-      return success;
+      const sessionData = await createNewSession();
+      return sessionData;
     } catch (error) {
       console.error('[Session] Failed to initialize session:', error);
-      return false;
+      handleError(error, { 
+        description: error instanceof Error ? error.message : ERROR_MESSAGES.SESSION_CREATE_ERROR,
+        logToConsole: true 
+      });
+      throw error;
     } finally {
+      loadingRef.current = false;
       setLoading(false);
-      setIsCreating(false);
     }
-  }, [isCreating, createNewSession]);
+  }, [createNewSession]);
 
   const refreshSession = useCallback(async () => {
     checkExistingSession();
   }, [checkExistingSession]);
 
+  // Set up auth state listener first, then check existing session
   useEffect(() => {
+    console.log('[Session] Setting up auth state listener');
+    
+    // Auth state listener for token refresh and sign out
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, authSession) => {
+      console.log('[Session] Auth state changed:', event);
+      
+      if (event === 'SIGNED_OUT') {
+        console.log('[Session] User signed out, clearing session');
+        setSession(null);
+        localStorage.removeItem('guest_session');
+      } else if (event === 'TOKEN_REFRESHED' && authSession?.user) {
+        console.log('[Session] Token refreshed for user:', authSession.user.id);
+        // Session state is still valid, no action needed
+      }
+    });
+
+    // Then check for existing session
     checkExistingSession();
+
+    return () => {
+      console.log('[Session] Cleaning up auth listener');
+      subscription.unsubscribe();
+    };
   }, [checkExistingSession]);
+
+  // Multi-tab sync: listen for storage changes
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'guest_session') {
+        if (e.newValue === null) {
+          // Session removed in another tab
+          console.log('[Session] Session removed in another tab');
+          setSession(null);
+        } else if (e.newValue) {
+          // Session updated in another tab
+          try {
+            const parsed = JSON.parse(e.newValue);
+            if (new Date(parsed.expires_at) > new Date()) {
+              console.log('[Session] Session updated from another tab');
+              setSession(parsed);
+            }
+          } catch (error) {
+            console.error('[Session] Failed to parse storage event:', error);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Monitor session expiry
   useEffect(() => {
@@ -168,7 +254,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [session?.expires_at, refreshSession]);
 
   return (
-    <SessionContext.Provider value={{ session, loading, initializeSession, refreshSession }}>
+    <SessionContext.Provider value={{ session, loading, ensureAnonAuth, initializeSession, refreshSession }}>
       {children}
     </SessionContext.Provider>
   );

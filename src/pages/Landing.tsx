@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ConversationButton } from "@/components/ConversationButton";
 import { ActivityIndicator } from "@/components/ActivityIndicator";
 import { useNavigate } from "react-router-dom";
 import { AgeGate } from "@/components/AgeGate";
 import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
-import { useSession } from "@/contexts/SessionContext";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +12,8 @@ import type { ActivityLevel } from "@/types";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { session } = useSession();
   const [showAgeGate, setShowAgeGate] = useState(false);
   const [needsLegalUpdate, setNeedsLegalUpdate] = useState(false);
-  const [shouldNavigateToSurvey, setShouldNavigateToSurvey] = useState(false);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [checkingActivity, setCheckingActivity] = useState(false);
 
@@ -29,14 +26,6 @@ const Landing = () => {
       navigate("/survey");
     }
   };
-
-  // Navigate to survey once session is ready
-  useEffect(() => {
-    if (shouldNavigateToSurvey && session) {
-      navigate("/survey");
-      setShouldNavigateToSurvey(false);
-    }
-  }, [shouldNavigateToSurvey, session, navigate]);
 
   const checkActivity = async () => {
     setCheckingActivity(true);
@@ -105,10 +94,7 @@ const Landing = () => {
       {/* Age Gate Modal */}
       <AgeGate 
         open={showAgeGate} 
-        onAccept={() => {
-          setShowAgeGate(false);
-          setShouldNavigateToSurvey(true);
-        }} 
+        onAccept={() => setShowAgeGate(false)} 
         onClose={() => setShowAgeGate(false)}
         needsLegalUpdate={needsLegalUpdate}
       />

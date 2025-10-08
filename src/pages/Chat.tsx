@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { validateMessage } from "@/lib/validation";
+import { isUuid } from "@/lib/validation-utils";
 import { handleApiError } from "@/lib/error-handler";
 import { getRandomPrompt } from "@/config/prompts";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/config/constants";
@@ -26,7 +27,15 @@ import { QuickReportSheet } from "@/components/QuickReportSheet";
 
 const Chat = () => {
   const navigate = useNavigate();
+  const { roomId: roomIdParam } = useParams<{ roomId: string }>();
   const { session } = useSession();
+
+  // Early validation of roomId URL parameter
+  if (!roomIdParam || !isUuid(roomIdParam)) {
+    return <Navigate to="/" replace />;
+  }
+
+  const roomId = roomIdParam;
   const [inputText, setInputText] = useState("");
   const [showGuidelines, setShowGuidelines] = useState(true);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
@@ -35,7 +44,7 @@ const Chat = () => {
   const [isSending, setIsSending] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
 
-  const { roomId, roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom();
+  const { roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom(roomId);
   
   // Monitor session expiry
   useSessionExpiry(session?.expires_at || null);

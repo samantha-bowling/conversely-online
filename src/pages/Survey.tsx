@@ -16,7 +16,7 @@ import { useLegalSheet } from "@/hooks/useLegalSheet";
 
 const Survey = () => {
   const navigate = useNavigate();
-  const { session, loading: sessionLoading } = useSession();
+  const { session } = useSession();
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -25,14 +25,6 @@ const Survey = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Redirect if no session exists
-  useEffect(() => {
-    if (!sessionLoading && !session) {
-      toast.error('Please start from the beginning');
-      navigate('/', { replace: true });
-    }
-  }, [session, sessionLoading, navigate]);
 
   // Fetch synchronized question pack on mount
   useEffect(() => {
@@ -114,22 +106,17 @@ const Survey = () => {
   const question = questions[currentQuestion];
   const progress = questions.length > 0 ? ((currentQuestion + 1) / questions.length) * 100 : 0;
 
-  // Show loading state while checking session or fetching questions
-  if (sessionLoading || loading || questions.length === 0) {
+  // Show loading state while fetching questions
+  if (loading || questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">
-            {sessionLoading ? 'Checking session...' : 'Loading questions...'}
-          </p>
+          <p className="text-muted-foreground">Loading questions...</p>
         </div>
       </div>
     );
   }
-
-  // Redirect handled by useEffect
-  if (!session) return null;
 
   return (
     <div className="min-h-screen flex flex-col p-4 animate-fade-in-gentle">

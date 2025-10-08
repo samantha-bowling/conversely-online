@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
-import { isValidLocationState, isRoomDataResponse } from "@/lib/validation";
+import { isRoomDataResponse } from "@/lib/validation";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
 import type { GetRoomDataResponse } from "@/types";
 
 interface UseChatRoomReturn {
-  roomId: string | null;
   roomStatus: string;
   partnerSessionId: string | null;
   partnerUsername: string;
@@ -18,11 +17,9 @@ interface UseChatRoomReturn {
   setStatusAnnouncement: (announcement: string) => void;
 }
 
-export const useChatRoom = (): UseChatRoomReturn => {
+export const useChatRoom = (roomId: string): UseChatRoomReturn => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { session } = useSession();
-  const [roomId, setRoomId] = useState<string | null>(null);
   const [roomStatus, setRoomStatus] = useState<string>("active");
   const [partnerSessionId, setPartnerSessionId] = useState<string | null>(null);
   const [partnerUsername, setPartnerUsername] = useState<string>("Anonymous");
@@ -31,27 +28,17 @@ export const useChatRoom = (): UseChatRoomReturn => {
 
   // Initialize room
   useEffect(() => {
-    if (!isValidLocationState(location.state)) {
-      toast.error(ERROR_MESSAGES.NO_CONVERSATION);
-      navigate("/");
-      return;
-    }
-
-    const room_id = location.state.room_id;
-
     if (!session) {
       toast.error(ERROR_MESSAGES.NO_SESSION);
       navigate("/");
       return;
     }
-
-    setRoomId(room_id);
     
     // Fetch room details
     const fetchRoom = async () => {
       const { data, error } = await supabase.functions.invoke<GetRoomDataResponse>('get-room-data', {
         body: {
-          room_id: room_id,
+          room_id: roomId,
         },
       });
 
@@ -74,7 +61,7 @@ export const useChatRoom = (): UseChatRoomReturn => {
     };
 
     fetchRoom();
-  }, [location, session, navigate]);
+  }, [roomId, session, navigate]);
 
   // Subscribe to room status
   useEffect(() => {
@@ -110,7 +97,6 @@ export const useChatRoom = (): UseChatRoomReturn => {
   }, [roomId, navigate]);
 
   return {
-    roomId,
     roomStatus,
     partnerSessionId,
     partnerUsername,

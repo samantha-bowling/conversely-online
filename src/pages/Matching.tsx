@@ -48,7 +48,7 @@ const Matching = () => {
           setStatus("found");
           setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
           setTimeout(() => {
-            navigate("/chat", { state: { room_id: data.room_id } });
+            navigate(`/chat/${data.room_id}`);
           }, TIMING.MATCH_FOUND_REDIRECT);
         } else {
           setStatus("not-found");

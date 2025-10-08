@@ -288,7 +288,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, '');
                     const currentYear = new Date().getFullYear();
-                    if (value === '' || (value.length <= 4 && parseInt(value) >= currentYear - 120 && parseInt(value) <= currentYear - 16)) {
+                    if (value === '' || value.length <= 4) {
                       setYear(value);
                     }
                   }}

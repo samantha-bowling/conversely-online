@@ -95,6 +95,8 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const [manualSelection, setManualSelection] = useState(false);
   const [viewedTerms, setViewedTerms] = useState(false);
   const [viewedPrivacy, setViewedPrivacy] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   // Auto-detect location on mount
   useEffect(() => {
@@ -146,11 +148,12 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
     return calculateAge(day, month, year) >= 16;
   }, [day, month, year]);
 
-  // Check if legal documents have been viewed
+  // Check if legal documents have been viewed and accepted
   const legalDocsViewed = viewedTerms && viewedPrivacy;
+  const legalDocsAccepted = acceptedTerms && acceptedPrivacy;
 
   const handleContinue = () => {
-    if (country && day && month && year && isEligible && legalDocsViewed) {
+    if (country && day && month && year && isEligible && legalDocsViewed && legalDocsAccepted) {
       // Validate and discard DOB - only record country
       recordAcceptance(country);
       markAgeGateSeen();
@@ -338,52 +341,104 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
               </p>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* Terms of Service */}
-              <Button
-                variant="outline"
-                onClick={handleOpenTerms}
-                className="w-full justify-between h-auto py-3 px-4"
-              >
-                <div className="flex items-center gap-2">
-                  {viewedTerms ? (
-                    <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                  ) : (
-                    <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
-                  )}
-                  <span className="text-sm font-medium">Terms of Service</span>
-                </div>
-                <span className="text-xs text-muted-foreground">View →</span>
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={handleOpenTerms}
+                  className="w-full justify-between h-auto py-3 px-4"
+                >
+                  <div className="flex items-center gap-2">
+                    {viewedTerms ? (
+                      <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
+                    )}
+                    <span className="text-sm font-medium">Terms of Service</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {viewedTerms ? '✓ Viewed' : 'View →'}
+                  </span>
+                </Button>
+                
+                {viewedTerms && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <input
+                      type="checkbox"
+                      id="accept-terms"
+                      checked={acceptedTerms}
+                      disabled={!viewedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      className="h-4 w-4 rounded border-input disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <Label 
+                      htmlFor="accept-terms"
+                      className={`text-sm cursor-pointer ${!viewedTerms ? 'text-muted-foreground' : ''}`}
+                    >
+                      I accept the Terms of Service
+                    </Label>
+                  </div>
+                )}
+              </div>
 
               {/* Privacy Policy */}
-              <Button
-                variant="outline"
-                onClick={handleOpenPrivacy}
-                className="w-full justify-between h-auto py-3 px-4"
-              >
-                <div className="flex items-center gap-2">
-                  {viewedPrivacy ? (
-                    <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                  ) : (
-                    <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
-                  )}
-                  <span className="text-sm font-medium">Privacy Policy</span>
-                </div>
-                <span className="text-xs text-muted-foreground">View →</span>
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={handleOpenPrivacy}
+                  className="w-full justify-between h-auto py-3 px-4"
+                >
+                  <div className="flex items-center gap-2">
+                    {viewedPrivacy ? (
+                      <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
+                    )}
+                    <span className="text-sm font-medium">Privacy Policy</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {viewedPrivacy ? '✓ Viewed' : 'View →'}
+                  </span>
+                </Button>
+                
+                {viewedPrivacy && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <input
+                      type="checkbox"
+                      id="accept-privacy"
+                      checked={acceptedPrivacy}
+                      disabled={!viewedPrivacy}
+                      onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                      className="h-4 w-4 rounded border-input disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <Label 
+                      htmlFor="accept-privacy"
+                      className={`text-sm cursor-pointer ${!viewedPrivacy ? 'text-muted-foreground' : ''}`}
+                    >
+                      I accept the Privacy Policy
+                    </Label>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {legalDocsViewed && (
+            {legalDocsAccepted && (
               <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-500 pt-1">
                 <Check className="h-4 w-4" />
-                <span>Both documents viewed</span>
+                <span>Both documents accepted</span>
               </div>
             )}
 
             {!legalDocsViewed && (
               <p className="text-xs text-muted-foreground pt-1">
-                Click each link to review before accepting
+                View each document to enable acceptance checkboxes
+              </p>
+            )}
+            
+            {legalDocsViewed && !legalDocsAccepted && (
+              <p className="text-xs text-muted-foreground pt-1">
+                Please accept both documents to continue
               </p>
             )}
           </div>
@@ -391,7 +446,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
-            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed}
+            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted}
             className="w-full"
           >
             Start Conversing

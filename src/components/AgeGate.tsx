@@ -406,10 +406,8 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   className="w-full justify-between h-auto py-3 px-4"
                 >
                   <div className="flex items-center gap-2">
-                    {viewedTerms ? (
+                    {viewedTerms && (
                       <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    ) : (
-                      <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
                     )}
                     <span className="text-sm font-medium">Terms of Service</span>
                   </div>
@@ -446,10 +444,8 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   className="w-full justify-between h-auto py-3 px-4"
                 >
                   <div className="flex items-center gap-2">
-                    {viewedPrivacy ? (
+                    {viewedPrivacy && (
                       <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    ) : (
-                      <div className="h-4 w-4 rounded-sm border-2 border-muted-foreground/50" />
                     )}
                     <span className="text-sm font-medium">Privacy Policy</span>
                   </div>

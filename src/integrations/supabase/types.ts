@@ -119,7 +119,7 @@ export type Database = {
           quick_exits?: number
           reputation_score?: number
           times_blocked?: number
-          user_id: string
+          user_id?: string
           username: string
         }
         Update: {

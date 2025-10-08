@@ -62,20 +62,20 @@ const Landing = () => {
           </ConversationButton>
 
           {!activityLevel ? (
-            <ConversationButton
-              variant="outline"
+            <button
               onClick={checkActivity}
               disabled={checkingActivity}
+              className="text-sm font-bold underline hover:no-underline text-foreground/80 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {checkingActivity ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
                   Checking...
-                </>
+                </span>
               ) : (
                 'Check Activity'
               )}
-            </ConversationButton>
+            </button>
           ) : (
             <div className="flex justify-center">
               <ActivityIndicator activityLevel={activityLevel} variant="full" />

@@ -101,7 +101,15 @@ const calculateAge = (day: string, month: string, year: string): number => {
 };
 
 export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: AgeGateProps) => {
-  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
+  const handleDocumentViewed = (doc: 'terms' | 'privacy') => {
+    if (doc === 'terms') {
+      setViewedTerms(true);
+    } else {
+      setViewedPrivacy(true);
+    }
+  };
+
+  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet(handleDocumentViewed);
   const { initializeSession } = useSession();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
@@ -213,12 +221,10 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
 
   const handleOpenTerms = () => {
     openTerms();
-    setViewedTerms(true);
   };
 
   const handleOpenPrivacy = () => {
     openPrivacy();
-    setViewedPrivacy(true);
   };
 
   return (

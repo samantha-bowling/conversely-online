@@ -26,8 +26,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  const createNewSession = useCallback(async () => {
+  const createNewSession = useCallback(async (): Promise<boolean> => {
     try {
+      console.log('[Session] Creating new guest session...');
+      
       const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
         'create-guest-session',
         {
@@ -38,6 +40,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       );
       
       if (error) {
+        console.error('[Session] Edge function error:', error);
         // Handle rate limiting
         if (error.message?.includes('Too many session requests')) {
           handleError(error, { 
@@ -50,7 +53,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             logToConsole: true 
           });
         }
-        return;
+        return false;
       }
 
       // Set Supabase auth session with anonymous user tokens
@@ -61,12 +64,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (authError) {
-          console.error('Failed to set auth session:', authError);
+          console.error('[Session] Auth session error:', authError);
           handleError(authError, { 
             description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
             logToConsole: true 
           });
-          return;
+          return false;
         }
       }
       
@@ -80,11 +83,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       
       localStorage.setItem('guest_session', JSON.stringify(sessionData));
       setSession(sessionData);
+      
+      console.log('[Session] Session created successfully:', {
+        id: data.id,
+        username: data.username,
+        expires_at: data.expires_at
+      });
+      
+      return true;
     } catch (error) {
+      console.error('[Session] Unexpected error:', error);
       handleError(error, { 
         description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
         logToConsole: true 
       });
+      return false;
     }
   }, []);
 
@@ -101,7 +114,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const initializeSession = useCallback(async (): Promise<boolean> => {
     // Prevent concurrent calls
     if (isCreating) {
-      console.log('Session creation already in progress');
+      console.log('[Session] Session creation already in progress');
       return false;
     }
     
@@ -109,16 +122,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      await createNewSession();
-      return session !== null;
+      const success = await createNewSession();
+      console.log('[Session] Initialize result:', success);
+      return success;
     } catch (error) {
-      console.error('Failed to initialize session:', error);
+      console.error('[Session] Failed to initialize session:', error);
       return false;
     } finally {
       setLoading(false);
       setIsCreating(false);
     }
-  }, [isCreating, createNewSession, session]);
+  }, [isCreating, createNewSession]);
 
   const refreshSession = useCallback(async () => {
     checkExistingSession();

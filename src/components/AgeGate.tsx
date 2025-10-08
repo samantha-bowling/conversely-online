@@ -380,7 +380,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium">
-                Please review our Terms of Service and Privacy Policy to{' '}
+                Please review and accept our Terms of Service and Privacy Policy to{' '}
                 <span className="inline-flex items-center gap-1">
                   continue
                   {needsLegalUpdate && (
@@ -406,9 +406,6 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   className="w-full justify-between h-auto py-3 px-4"
                 >
                   <div className="flex items-center gap-2">
-                    {viewedTerms && (
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    )}
                     <span className="text-sm font-medium">Terms of Service</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -444,9 +441,6 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   className="w-full justify-between h-auto py-3 px-4"
                 >
                   <div className="flex items-center gap-2">
-                    {viewedPrivacy && (
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                    )}
                     <span className="text-sm font-medium">Privacy Policy</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -485,12 +479,6 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
             {!legalDocsViewed && (
               <p className="text-xs text-muted-foreground pt-1">
                 View each document to enable acceptance checkboxes
-              </p>
-            )}
-            
-            {legalDocsViewed && !legalDocsAccepted && (
-              <p className="text-xs text-muted-foreground pt-1">
-                Please accept both documents to continue
               </p>
             )}
           </div>

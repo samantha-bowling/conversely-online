@@ -28,8 +28,23 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const createNewSession = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('[Session] Creating new guest session...');
+      console.log('[Session] Creating anonymous auth session...');
       
+      // 1. Create anonymous auth session in browser (with ANON key)
+      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+      
+      if (authError || !authData.user || !authData.session) {
+        console.error('[Session] Anonymous auth error:', authError);
+        handleError(authError, { 
+          description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
+          logToConsole: true 
+        });
+        return false;
+      }
+      
+      console.log('[Session] Auth session created, user_id:', authData.user.id);
+      
+      // 2. Call edge function - JWT is automatically included in Authorization header
       const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
         'create-guest-session',
         {
@@ -55,25 +70,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         }
         return false;
       }
-
-      // Set Supabase auth session with anonymous user tokens
-      if (data.auth_session) {
-        const { error: authError } = await supabase.auth.setSession({
-          access_token: data.auth_session.access_token,
-          refresh_token: data.auth_session.refresh_token,
-        });
-
-        if (authError) {
-          console.error('[Session] Auth session error:', authError);
-          handleError(authError, { 
-            description: ERROR_MESSAGES.SESSION_CREATE_ERROR,
-            logToConsole: true 
-          });
-          return false;
-        }
-      }
       
-      // Store guest session data (without auth tokens for security)
+      // 3. Store guest session data (auth session already set above)
       const sessionData = {
         id: data.id,
         username: data.username,
@@ -87,6 +85,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       console.log('[Session] Session created successfully:', {
         id: data.id,
         username: data.username,
+        user_id: authData.user.id,
         expires_at: data.expires_at
       });
       

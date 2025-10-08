@@ -43,6 +43,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Check for consent header (logged for compliance, not enforced for backward compatibility)
+    const hasConsent = req.headers.get('x-consent-given') === 'true';
+    if (!hasConsent) {
+      console.warn('Session creation attempted without consent flag');
+    }
+
     // Rate limiting: 10 sessions per IP per hour
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 
                      req.headers.get('x-real-ip') || 
@@ -93,7 +99,13 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    console.log('Created guest session:', session.id, 'for user:', authData.user.id);
+    console.log('Session created', {
+      sessionId: session.id,
+      userId: authData.user.id,
+      username: username,
+      hasConsent: hasConsent,
+      timestamp: new Date().toISOString()
+    });
 
     // Return both session data and auth tokens
     return new Response(

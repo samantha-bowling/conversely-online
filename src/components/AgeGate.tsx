@@ -10,6 +10,8 @@ import { AlertCircle, Check, Info, MapPin, Loader2 } from 'lucide-react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/contexts/SessionContext';
+import { toast } from 'sonner';
 
 interface AgeGateProps {
   open: boolean;
@@ -85,6 +87,7 @@ const calculateAge = (day: string, month: string, year: string): number => {
 
 export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: AgeGateProps) => {
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
+  const { initializeSession } = useSession();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
   const [month, setMonth] = useState<string>('');
@@ -97,6 +100,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const [viewedPrivacy, setViewedPrivacy] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [creatingSession, setCreatingSession] = useState(false);
 
   // Auto-detect location on mount
   useEffect(() => {
@@ -152,12 +156,30 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const legalDocsViewed = viewedTerms && viewedPrivacy;
   const legalDocsAccepted = acceptedTerms && acceptedPrivacy;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (country && day && month && year && isEligible && legalDocsViewed && legalDocsAccepted) {
-      // Validate and discard DOB - only record country
-      recordAcceptance(country);
-      markAgeGateSeen();
-      onAccept();
+      setCreatingSession(true);
+      
+      try {
+        // Record acceptance first
+        recordAcceptance(country);
+        markAgeGateSeen();
+        
+        // Create session with consent flag
+        const success = await initializeSession();
+        
+        if (success) {
+          console.log('Session created after age gate acceptance');
+          onAccept();
+        } else {
+          toast.error('Failed to create session. Please try again.');
+        }
+      } catch (error) {
+        console.error('Age gate completion error:', error);
+        toast.error('An error occurred. Please try again.');
+      } finally {
+        setCreatingSession(false);
+      }
     }
   };
 
@@ -446,10 +468,17 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
-            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted}
+            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted || creatingSession}
             className="w-full"
           >
-            Start Conversing
+            {creatingSession ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Creating your session...
+              </>
+            ) : (
+              'Start Conversing'
+            )}
           </Button>
         </div>
       </DialogContent>

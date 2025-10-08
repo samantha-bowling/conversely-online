@@ -15,6 +15,7 @@ interface Session {
 interface SessionContextType {
   session: Session | null;
   loading: boolean;
+  initializeSession: () => Promise<boolean>;
   refreshSession: () => Promise<void>;
 }
 
@@ -22,11 +23,19 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const createNewSession = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke<CreateSessionResponse>('create-guest-session');
+      const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
+        'create-guest-session',
+        {
+          headers: {
+            'x-consent-given': 'true'
+          }
+        }
+      );
       
       if (error) {
         // Handle rate limiting
@@ -79,27 +88,45 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const refreshSession = useCallback(async () => {
+  const checkExistingSession = useCallback(() => {
     const stored = localStorage.getItem('guest_session');
-    
     if (stored) {
       const parsed = JSON.parse(stored);
-      
-      // Check if expired
       if (new Date(parsed.expires_at) > new Date()) {
         setSession(parsed);
-        setLoading(false);
-        return;
       }
     }
+  }, []);
+
+  const initializeSession = useCallback(async (): Promise<boolean> => {
+    // Prevent concurrent calls
+    if (isCreating) {
+      console.log('Session creation already in progress');
+      return false;
+    }
     
-    await createNewSession();
-    setLoading(false);
-  }, [createNewSession]);
+    setIsCreating(true);
+    setLoading(true);
+    
+    try {
+      await createNewSession();
+      return session !== null;
+    } catch (error) {
+      console.error('Failed to initialize session:', error);
+      return false;
+    } finally {
+      setLoading(false);
+      setIsCreating(false);
+    }
+  }, [isCreating, createNewSession, session]);
+
+  const refreshSession = useCallback(async () => {
+    checkExistingSession();
+  }, [checkExistingSession]);
 
   useEffect(() => {
-    refreshSession();
-  }, [refreshSession]);
+    checkExistingSession();
+  }, [checkExistingSession]);
 
   // Monitor session expiry
   useEffect(() => {
@@ -128,7 +155,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, [session?.expires_at, refreshSession]);
 
   return (
-    <SessionContext.Provider value={{ session, loading, refreshSession }}>
+    <SessionContext.Provider value={{ session, loading, initializeSession, refreshSession }}>
       {children}
     </SessionContext.Provider>
   );

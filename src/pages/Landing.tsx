@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ConversationButton } from "@/components/ConversationButton";
 import { ActivityIndicator } from "@/components/ActivityIndicator";
 import { useNavigate } from "react-router-dom";
-import { useSession } from "@/contexts/SessionContext";
 import { AgeGate } from "@/components/AgeGate";
 import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
@@ -13,7 +12,6 @@ import type { ActivityLevel } from "@/types";
 
 const Landing = () => {
   const navigate = useNavigate();
-  const { session, loading } = useSession();
   const [showAgeGate, setShowAgeGate] = useState(false);
   const [needsLegalUpdate, setNeedsLegalUpdate] = useState(false);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
@@ -57,8 +55,8 @@ const Landing = () => {
         </div>
 
         <div className="pt-8 space-y-4">
-          <ConversationButton variant="primary" onClick={handleStartClick} disabled={loading || !session}>
-            {loading ? "Preparing..." : "Start a Conversation"}
+          <ConversationButton variant="primary" onClick={handleStartClick}>
+            Start a Conversation
           </ConversationButton>
 
           {!activityLevel ? (

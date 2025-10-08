@@ -25,7 +25,7 @@ export const ERROR_MESSAGES = {
   RATE_LIMITED: "Please slow down - you're sending messages too quickly",
   INAPPROPRIATE_CONTENT: "Message contains inappropriate content",
   TOO_MANY_BLOCKS: "Too many blocks - please wait before blocking again",
-  MATCH_ERROR: "Error finding match",
+  MATCH_ERROR: "Couldn't connect right now - please try again",
   SURVEY_SAVE_ERROR: "Error saving survey answers",
   SESSION_CREATE_ERROR: "Error creating session",
   SESSION_RATE_LIMITED: "Too many session requests",

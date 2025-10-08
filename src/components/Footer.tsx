@@ -17,6 +17,14 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
       <div className="text-center text-xs text-muted-foreground space-x-2">
         <Button 
           variant="link" 
+          onClick={() => setAboutOpen(true)}
+          className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+        >
+          About
+        </Button>
+        <span>•</span>
+        <Button 
+          variant="link" 
           onClick={openTerms}
           className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
         >
@@ -29,14 +37,6 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
           className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
         >
           Privacy
-        </Button>
-        <span>•</span>
-        <Button 
-          variant="link" 
-          onClick={() => setAboutOpen(true)}
-          className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
-        >
-          About
         </Button>
         <span>•</span>
         {variant === 'chat' ? (

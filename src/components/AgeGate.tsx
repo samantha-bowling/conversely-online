@@ -180,19 +180,6 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Legal Update Alert (for returning users) */}
-          {needsLegalUpdate && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Legal Documents Updated</strong>
-                <p className="mt-1 text-sm">
-                  Our Terms of Service or Privacy Policy have been updated. Please review the updated documents below.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Country Selection */}
           <div className="space-y-2">
             <Label htmlFor="country">Where are you located?</Label>
@@ -332,7 +319,19 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
 
           {/* Legal Document Review */}
           <div className="space-y-3 p-4 border border-border rounded-lg bg-muted/30">
-            <p className="text-sm font-medium">Please review our legal documents:</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Please review our Terms of Service and Privacy Policy to continue</p>
+              {needsLegalUpdate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Our Terms of Service or Privacy Policy have been updated. Please review the updated documents.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
             
             <div className="space-y-2">
               {/* Terms of Service */}

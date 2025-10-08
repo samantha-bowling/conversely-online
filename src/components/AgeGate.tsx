@@ -73,7 +73,22 @@ const getDaysInMonth = (month: string, year: string) => {
 
 // Calculate age and check eligibility
 const calculateAge = (day: string, month: string, year: string): number => {
-  const birthDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  const dayNum = parseInt(day);
+  const monthNum = parseInt(month) - 1; // 0-indexed
+  const yearNum = parseInt(year);
+  
+  const birthDate = new Date(yearNum, monthNum, dayNum);
+  
+  // Validate the date wasn't rolled over by invalid input
+  // e.g., Feb 30 becomes March 2, so getDate() !== 30
+  if (
+    birthDate.getDate() !== dayNum ||
+    birthDate.getMonth() !== monthNum ||
+    birthDate.getFullYear() !== yearNum
+  ) {
+    return -1; // Return invalid age to indicate bad date
+  }
+  
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -148,8 +163,21 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
 
   // Computed eligibility
   const isEligible = useMemo(() => {
-    if (!day || !month || !year) return null;
-    return calculateAge(day, month, year) >= 16;
+    // Only validate when all fields are complete
+    if (!day || !month || !year || year.length !== 4) return null;
+    
+    const yearNum = parseInt(year);
+    const currentYear = new Date().getFullYear();
+    
+    // Validate year is within reasonable range
+    if (yearNum < 1900 || yearNum > currentYear) return null;
+    
+    const age = calculateAge(day, month, year);
+    
+    // Invalid date (e.g., Feb 30, April 31)
+    if (age < 0) return null;
+    
+    return age >= 16;
   }, [day, month, year]);
 
   // Check if legal documents have been viewed and accepted

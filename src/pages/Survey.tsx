@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft } from "lucide-react";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES } from "@/config/constants";
-import { getRandomizedQuestions } from "@/config/survey";
+import { SURVEY_QUESTIONS, type SurveyQuestion } from "@/config/survey";
 import { isAcceptanceCurrent } from "@/utils/legalAcceptance";
 import { toast } from "sonner";
 import type { TablesInsert } from '@/integrations/supabase/types';
@@ -23,9 +23,34 @@ const Survey = () => {
   const [submitting, setSubmitting] = useState(false);
   const [progressAnnouncement, setProgressAnnouncement] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Randomize 5 questions on mount
-  const [questions] = useState(() => getRandomizedQuestions());
+  // Fetch synchronized question pack on mount
+  useEffect(() => {
+    const fetchQuestionPack = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-question-pack');
+        
+        if (error) throw error;
+        
+        // Map question IDs to full question objects
+        const packQuestions = data.question_ids.map((id: string) => 
+          SURVEY_QUESTIONS.find(q => q.id === id)
+        ).filter(Boolean) as SurveyQuestion[];
+        
+        setQuestions(packQuestions);
+        console.log('Loaded question pack:', data.pack_id, packQuestions.map(q => q.id));
+      } catch (error) {
+        console.error('Error fetching question pack:', error);
+        handleError(error, { description: "Failed to load questions. Please refresh." });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuestionPack();
+  }, []);
 
   const handleAnswer = (answer: string) => {
     const questionId = questions[currentQuestion].id;
@@ -79,7 +104,19 @@ const Survey = () => {
   };
 
   const question = questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestion + 1) / questions.length) * 100 : 0;
+
+  // Show loading state while fetching questions
+  if (loading || questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col p-4 animate-fade-in-gentle">

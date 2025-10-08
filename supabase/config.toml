@@ -3,6 +3,9 @@ project_id = "rlsontubfdpqzhoqezks"
 [functions.create-guest-session]
 verify_jwt = false
 
+[functions.get-question-pack]
+verify_jwt = false
+
 [functions.match-opposite]
 verify_jwt = true
 

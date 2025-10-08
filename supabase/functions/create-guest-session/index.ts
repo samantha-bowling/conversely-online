@@ -3,7 +3,7 @@ import { checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-consent-given',
 };
 
 const securityHeaders = {
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Check for consent header (logged for compliance, not enforced for backward compatibility)
+    // Check for consent header (logged for compliance)
     const hasConsent = req.headers.get('x-consent-given') === 'true';
     if (!hasConsent) {
       console.warn('Session creation attempted without consent flag');
@@ -71,52 +71,68 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create Supabase client with ANON key and forward Authorization header
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - no auth session provided' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    // Verify auth context - ensure we have a valid JWT
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    
+    if (getUserError || !user) {
+      console.error('Auth verification failed:', getUserError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - invalid auth session' }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    console.log('Authenticated user:', user.id);
 
     const username = generateUsername();
     const avatar = generateAvatar();
 
-    // Create anonymous auth user
-    const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-    
-    if (authError || !authData.user || !authData.session) {
-      console.error('Anonymous auth error:', authError);
-      throw new Error('Failed to create authentication');
-    }
-
-    // Create guest session linked to auth user
+    // Insert guest session - user_id will be auto-set by trigger from auth.uid()
     const { data: session, error } = await supabase
       .from('guest_sessions')
       .insert({
         username,
         avatar,
-        user_id: authData.user.id,
+        // DO NOT set user_id here - let the database trigger handle it
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Database error:', error);
+      throw error;
+    }
 
     console.log('Session created', {
       sessionId: session.id,
-      userId: authData.user.id,
+      userId: user.id,
       username: username,
       hasConsent: hasConsent,
       timestamp: new Date().toISOString()
     });
 
-    // Return both session data and auth tokens
+    // Return session data (NO auth tokens - already set in browser)
     return new Response(
-      JSON.stringify({
-        ...session,
-        auth_session: {
-          access_token: authData.session.access_token,
-          refresh_token: authData.session.refresh_token,
-          user: { id: authData.user.id },
-        },
-      }),
+      JSON.stringify(session),
       {
         headers: securityHeaders,
         status: 200,

@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
     // Extract token from Authorization header
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -86,8 +87,8 @@ Deno.serve(async (req) => {
     
     const accessToken = authHeader.replace(/^Bearer\s+/i, '');
 
-    // Create client with proper config
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // 1) Verify user with anon client (no RLS bypass)
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -95,14 +96,17 @@ Deno.serve(async (req) => {
       },
     });
 
-    // CRITICAL: Inject the caller's session so PostgREST uses it
-    await supabase.auth.setSession({ 
-      access_token: accessToken, 
-      refresh_token: '' 
+    // 2) Create service role client for DB operations
+    const dbClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
     });
 
     // Verify auth context - ensure we have a valid JWT
-    const { data: { user }, error: getUserError } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error: getUserError } = await authClient.auth.getUser(accessToken);
     
     if (getUserError || !user) {
       console.error('Auth verification failed:', getUserError);
@@ -117,13 +121,13 @@ Deno.serve(async (req) => {
     const username = generateUsername();
     const avatar = generateAvatar();
 
-    // Insert guest session - user_id will be auto-set by DEFAULT auth.uid()
-    const { data: session, error } = await supabase
+    // Insert guest session - user_id explicitly set from verified JWT
+    const { data: session, error } = await dbClient
       .from('guest_sessions')
       .insert({
         username,
         avatar,
-        // DO NOT set user_id here - let the database trigger handle it
+        user_id: user.id  // Explicitly set from verified JWT
       })
       .select()
       .single();

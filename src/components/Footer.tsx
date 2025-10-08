@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { Button } from '@/components/ui/button';
+import { AboutSheet } from '@/components/AboutSheet';
 
 interface FooterProps {
   variant?: 'default' | 'chat' | 'legal';
@@ -8,6 +10,7 @@ interface FooterProps {
 
 export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
   const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <>
@@ -26,6 +29,14 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
           className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
         >
           Privacy
+        </Button>
+        <span>•</span>
+        <Button 
+          variant="link" 
+          onClick={() => setAboutOpen(true)}
+          className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+        >
+          About
         </Button>
         <span>•</span>
         {variant === 'chat' ? (
@@ -54,6 +65,7 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
         )}
       </div>
       <LegalSheet />
+      <AboutSheet open={aboutOpen} onOpenChange={setAboutOpen} />
     </>
   );
 };

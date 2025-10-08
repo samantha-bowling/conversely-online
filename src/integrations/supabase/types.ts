@@ -216,6 +216,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_see_session: {
+        Args: { _session_id: string; _user_id: string }
+        Returns: boolean
+      }
       cleanup_expired_messages: {
         Args: Record<PropertyKey, never>
         Returns: undefined

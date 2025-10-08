@@ -46,6 +46,13 @@ export interface BlockUserResponse {
   blocked: boolean;
 }
 
+// Activity level response
+export interface ActivityLevel {
+  level: 'active' | 'building' | 'quiet';
+  message: string;
+  icon: string;
+}
+
 // Realtime payload types
 export interface MessagePayload {
   id: string;

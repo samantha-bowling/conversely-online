@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.get-user-location]
 verify_jwt = false
 
+[functions.get-activity-level]
+verify_jwt = false
+
 [functions.maintenance.schedule]
 # Cleanup expired messages every 5 minutes
 - cron = "*/5 * * * *"

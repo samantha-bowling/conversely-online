@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
+import { ActivityIndicator } from "@/components/ActivityIndicator";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { isMatchResponse } from "@/lib/validation";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
-import type { MatchOppositeResponse } from '@/types';
+import type { MatchOppositeResponse, ActivityLevel } from '@/types';
 
 const Matching = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Matching = () => {
   const [status, setStatus] = useState<"searching" | "found" | "not-found" | "cooldown" | "rate-limited">("searching");
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [statusAnnouncement, setStatusAnnouncement] = useState<string>(STATUS_MESSAGES.SEARCHING);
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
 
   useEffect(() => {
     const findMatch = async () => {
@@ -51,6 +53,15 @@ const Matching = () => {
         } else {
           setStatus("not-found");
           setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
+          // Fetch activity level when no match is found
+          try {
+            const { data: activityData } = await supabase.functions.invoke<ActivityLevel>('get-activity-level');
+            if (activityData) {
+              setActivityLevel(activityData);
+            }
+          } catch (err) {
+            console.error('Error fetching activity level:', err);
+          }
         }
       } catch (error) {
         handleError(error, { description: ERROR_MESSAGES.MATCH_ERROR });
@@ -148,12 +159,17 @@ const Matching = () => {
 
         {status === "not-found" && (
           <div className="space-y-6 text-center">
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h2 className="text-2xl font-bold">No match found right now</h2>
               <p className="text-muted-foreground">
-                We couldn't find someone with opposite views at the moment.
-                This happens when the pool is small.
+                Nobody's available at the moment. Check back again soon!
               </p>
+              
+              {activityLevel && (
+                <div className="flex justify-center pt-2">
+                  <ActivityIndicator activityLevel={activityLevel} variant="full" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 pt-4">

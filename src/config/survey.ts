@@ -127,8 +127,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
   },
 ] as const;
 
-export const getRandomizedQuestions = (count: { min: number; max: number }): SurveyQuestion[] => {
+export const getRandomizedQuestions = (): SurveyQuestion[] => {
   const shuffled = [...SURVEY_QUESTIONS].sort(() => Math.random() - 0.5);
-  const questionCount = Math.floor(Math.random() * (count.max - count.min + 1)) + count.min;
-  return shuffled.slice(0, questionCount);
+  return shuffled.slice(0, 5);
 };

@@ -22,12 +22,12 @@ const Survey = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [progressAnnouncement, setProgressAnnouncement] = useState("");
-  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Randomize 3-5 questions on mount
-  const [questions] = useState(() => getRandomizedQuestions({ min: 3, max: 5 }));
+  // Randomize 5 questions on mount
+  const [questions] = useState(() => getRandomizedQuestions());
 
-  const handleAnswer = async (answer: string) => {
+  const handleAnswer = (answer: string) => {
     const questionId = questions[currentQuestion].id;
     const newAnswers = { ...answers, [questionId]: answer };
     setAnswers(newAnswers);
@@ -37,41 +37,45 @@ const Survey = () => {
       setCurrentQuestion(nextQuestion);
       setProgressAnnouncement(`Question ${nextQuestion + 1} of ${questions.length}`);
     } else {
-      // Check legal acceptance before completing survey
-      if (!legalAccepted) {
-        toast.error("Please accept the Terms of Service and Privacy Policy to continue");
-        return;
-      }
-
-      if (!isAcceptanceCurrent()) {
-        toast.error("Please review and accept our legal documents");
-        navigate("/");
-        return;
-      }
-
-      // Survey complete, save to database
-      setSubmitting(true);
-      try {
-        type SurveyAnswerInsert = TablesInsert<'survey_answers'>;
-
-        const answersArray: SurveyAnswerInsert[] = Object.entries(newAnswers).map(([question_id, answer]) => ({
-          session_id: session?.id!,
-          question_id,
-          answer,
-        }));
-
-        const { error } = await supabase
-          .from('survey_answers')
-          .insert(answersArray);
-
-        if (error) throw error;
-
-        navigate("/matching");
-      } catch (error) {
-        handleError(error, { description: ERROR_MESSAGES.SURVEY_SAVE_ERROR });
-        setSubmitting(false);
-      }
+      // All questions answered, show confirmation
+      setShowConfirmation(true);
+      setProgressAnnouncement("Review your answers");
     }
+  };
+
+  const handleSubmit = async () => {
+    // Final legal check before submission
+    if (!isAcceptanceCurrent()) {
+      toast.error("Please review and accept our legal documents");
+      navigate("/");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      type SurveyAnswerInsert = TablesInsert<'survey_answers'>;
+
+      const answersArray: SurveyAnswerInsert[] = Object.entries(answers).map(([question_id, answer]) => ({
+        session_id: session?.id!,
+        question_id,
+        answer,
+      }));
+
+      const { error } = await supabase
+        .from('survey_answers')
+        .insert(answersArray);
+
+      if (error) throw error;
+
+      navigate("/matching");
+    } catch (error) {
+      handleError(error, { description: ERROR_MESSAGES.SURVEY_SAVE_ERROR });
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoBack = () => {
+    setShowConfirmation(false);
   };
 
   const question = questions[currentQuestion];
@@ -113,70 +117,73 @@ const Survey = () => {
         />
       </div>
 
-      {/* Question */}
+      {/* Question or Confirmation */}
       <main className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full" role="main">
-        <fieldset className="w-full">
-          <legend className="text-2xl font-bold text-center mb-12 leading-relaxed">
-            {question.question}
-          </legend>
+        {!showConfirmation ? (
+          <fieldset className="w-full">
+            <legend className="text-2xl font-bold text-center mb-12 leading-relaxed">
+              {question.question}
+            </legend>
 
-          <div className="w-full space-y-4">
-            {question.options.map((option) => (
-            <ConversationButton
-              key={option}
-              variant="outline"
-              onClick={() => handleAnswer(option)}
-              disabled={submitting}
-              aria-label={`Select ${option}`}
-            >
-              {option}
-            </ConversationButton>
-            ))}
+            <div className="w-full space-y-4">
+              {question.options.map((option) => (
+                <ConversationButton
+                  key={option}
+                  variant="outline"
+                  onClick={() => handleAnswer(option)}
+                  disabled={submitting}
+                  aria-label={`Select ${option}`}
+                >
+                  {option}
+                </ConversationButton>
+              ))}
+            </div>
+          </fieldset>
+        ) : (
+          <div className="w-full space-y-8">
+            <h2 className="text-2xl font-bold text-center">Review Your Answers</h2>
+            
+            <div className="space-y-4">
+              {questions.map((q, index) => (
+                <div 
+                  key={q.id} 
+                  className="p-4 rounded-lg border border-border bg-card"
+                >
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Question {index + 1}
+                  </p>
+                  <p className="font-medium mb-2">{q.question}</p>
+                  <p className="text-primary font-semibold">
+                    {answers[q.id]}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <ConversationButton
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? "Starting..." : "Start Matching"}
+              </ConversationButton>
+              <ConversationButton
+                variant="outline"
+                onClick={handleGoBack}
+                disabled={submitting}
+              >
+                Go Back
+              </ConversationButton>
+            </div>
           </div>
-        </fieldset>
+        )}
       </main>
 
-      {/* Legal Acceptance */}
-      {currentQuestion === questions.length - 1 && (
-        <div className="pt-8 max-w-lg mx-auto">
-          <label className="flex items-start gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-            <input
-              type="checkbox"
-              checked={legalAccepted}
-              onChange={(e) => setLegalAccepted(e.target.checked)}
-              className="mt-1"
-            />
-            <span className="text-sm text-muted-foreground">
-              I confirm I am 16 years or older and agree to the{' '}
-              <Button
-                variant="link"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openTerms();
-                }}
-                className="p-0 h-auto text-sm text-primary hover:underline"
-              >
-                Terms of Service
-              </Button>
-              {' '}and{' '}
-              <Button
-                variant="link"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openPrivacy();
-                }}
-                className="p-0 h-auto text-sm text-primary hover:underline"
-              >
-                Privacy Policy
-              </Button>
-            </span>
-          </label>
-        </div>
+      {!showConfirmation && (
+        <p className="text-center text-sm text-muted-foreground pt-8">
+          Your answers help us match you with someone who sees things differently
+        </p>
       )}
-
-      <p className="text-center text-sm text-muted-foreground pt-8">
-        Your answers help us match you with someone who sees things differently
-      </p>
 
       {/* Footer */}
       <footer className="pt-8">

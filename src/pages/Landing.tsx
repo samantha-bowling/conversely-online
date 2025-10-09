@@ -44,7 +44,23 @@ const Landing = () => {
   return <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
       <div className="max-w-md w-full space-y-8 text-center">
         <div className="mb-8">
-          <img src={converselyBanner} alt="Conversely" className="max-w-[336px] w-full mx-auto" />
+          <img 
+            src={converselyBanner} 
+            alt="Conversely - Talk with someone unlike you" 
+            className="max-w-[336px] w-full mx-auto"
+            loading="eager"
+            width={336}
+            height={120}
+            onLoad={() => console.log('Banner loaded successfully')}
+            onError={(e) => {
+              console.error('Banner failed to load');
+              e.currentTarget.style.display = 'none';
+              const fallback = document.createElement('h1');
+              fallback.textContent = 'Conversely';
+              fallback.className = 'text-4xl font-bold';
+              e.currentTarget.parentElement?.appendChild(fallback);
+            }}
+          />
         </div>
 
         <div className="space-y-4">

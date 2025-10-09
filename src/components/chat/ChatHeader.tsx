@@ -8,6 +8,8 @@ interface ChatHeaderProps {
   connectionStatus: ConnectionStatus;
   partnerUsername: string;
   partnerAvatar: string;
+  currentUsername?: string;
+  currentAvatar?: string;
   onShowPrompt: () => void;
   onBlock: () => void;
   onEndChat: () => void;
@@ -18,6 +20,8 @@ export const ChatHeader = ({
   connectionStatus,
   partnerUsername,
   partnerAvatar,
+  currentUsername = "You",
+  currentAvatar = "👤",
   onShowPrompt, 
   onBlock, 
   onEndChat 
@@ -61,10 +65,9 @@ export const ChatHeader = ({
     <header className="border-b border-border p-4 flex items-center justify-between bg-card" role="banner">
       <div className="flex items-center gap-3">
         <div>
-          <div className="font-bold">{partnerAvatar} {partnerUsername}</div>
-          <div className="text-xs text-muted-foreground" role="status" aria-live="polite">
-            {roomStatus === "ended" ? "Disconnected" : "Active"}
-          </div>
+          <div className="text-xs text-muted-foreground">You: {currentAvatar} {currentUsername}</div>
+          <div className="text-xs text-muted-foreground mt-1">Chatting with</div>
+          <div className="font-bold text-lg">{partnerAvatar} {partnerUsername}</div>
         </div>
         <div role="status" aria-live="polite">
           {getConnectionBadge()}

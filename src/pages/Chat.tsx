@@ -13,6 +13,7 @@ import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatGuidelines } from "@/components/chat/ChatGuidelines";
 import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
+import { ReflectionDialog } from "@/components/chat/ReflectionDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatMessages } from "@/hooks/useChatMessages";
@@ -39,10 +40,12 @@ const Chat = () => {
   const [inputText, setInputText] = useState("");
   const [showGuidelines, setShowGuidelines] = useState(true);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
-  const [currentPrompt] = useState(getRandomPrompt);
+  const [currentPrompt, setCurrentPrompt] = useState(getRandomPrompt);
+  const [shufflesRemaining, setShufflesRemaining] = useState(3);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
+  const [showReflectionDialog, setShowReflectionDialog] = useState(false);
 
   const { roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom(roomId);
   
@@ -120,11 +123,62 @@ const Chat = () => {
       }
 
       if (data?.success) {
-        navigate("/");
+        // Show reflection dialog instead of immediate navigation
+        setShowReflectionDialog(true);
       }
     } catch (error) {
       handleApiError(error, ERROR_MESSAGES.END_CHAT_FAILED);
     }
+  };
+
+  const handleShuffle = () => {
+    if (shufflesRemaining <= 0) return;
+    setCurrentPrompt(getRandomPrompt());
+    setShufflesRemaining(prev => prev - 1);
+  };
+
+  const handleInsertPrompt = () => {
+    setInputText(currentPrompt);
+  };
+
+  const handleShowPrompt = () => {
+    // Reset shuffles when opening dialog
+    setShufflesRemaining(3);
+    setShowPromptDialog(true);
+  };
+
+  const handleReflectionSubmit = async (rating: number | null, feedback: string) => {
+    if (!roomId || !session) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('submit-reflection', {
+        body: {
+          room_id: roomId,
+          rating,
+          feedback: feedback.trim() || null,
+        },
+      });
+
+      if (error) {
+        console.error('Failed to submit reflection:', error);
+        // Don't block navigation on reflection submission failure
+      } else {
+        toast.success('Thank you for your feedback!');
+      }
+    } catch (error) {
+      console.error('Error submitting reflection:', error);
+    } finally {
+      setShowReflectionDialog(false);
+      navigate("/");
+    }
+  };
+
+  const handleReflectionSkip = () => {
+    setShowReflectionDialog(false);
+    navigate("/");
   };
 
   const handleBlock = async () => {
@@ -177,6 +231,17 @@ const Chat = () => {
         open={showPromptDialog} 
         onOpenChange={setShowPromptDialog} 
         prompt={currentPrompt}
+        shufflesRemaining={shufflesRemaining}
+        onShuffle={handleShuffle}
+        onInsert={handleInsertPrompt}
+      />
+
+      {/* Reflection Dialog */}
+      <ReflectionDialog
+        open={showReflectionDialog}
+        onOpenChange={setShowReflectionDialog}
+        onSubmit={handleReflectionSubmit}
+        onSkip={handleReflectionSkip}
       />
 
       {/* Header */}
@@ -185,7 +250,9 @@ const Chat = () => {
         connectionStatus={connectionStatus}
         partnerUsername={partnerUsername}
         partnerAvatar={partnerAvatar}
-        onShowPrompt={() => setShowPromptDialog(true)}
+        currentUsername={session?.username}
+        currentAvatar={session?.avatar}
+        onShowPrompt={handleShowPrompt}
         onBlock={handleBlock}
         onEndChat={handleEndChat}
       />

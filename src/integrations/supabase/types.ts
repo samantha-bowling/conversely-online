@@ -214,6 +214,55 @@ export type Database = {
           },
         ]
       }
+      reflections: {
+        Row: {
+          created_at: string | null
+          feedback: string | null
+          id: string
+          rating: number | null
+          room_id: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          rating?: number | null
+          room_id: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          rating?: number | null
+          room_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reflections_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reflections_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reflections_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_answers: {
         Row: {
           answer: string

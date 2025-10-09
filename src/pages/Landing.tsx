@@ -49,6 +49,7 @@ const Landing = () => {
             alt="Conversely - Talk with someone unlike you" 
             className="max-w-[336px] w-full mx-auto"
             loading="eager"
+            fetchPriority="high"
             width={336}
             height={120}
             onLoad={() => console.log('Banner loaded successfully')}

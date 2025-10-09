@@ -17,6 +17,7 @@ const Matching = () => {
   const [waitSeconds, setWaitSeconds] = useState(0);
   const [statusAnnouncement, setStatusAnnouncement] = useState<string>(STATUS_MESSAGES.SEARCHING);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
+  const [checkingActivity, setCheckingActivity] = useState(false);
 
   useEffect(() => {
     const findMatch = async () => {
@@ -53,15 +54,6 @@ const Matching = () => {
         } else {
           setStatus("not-found");
           setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
-          // Fetch activity level when no match is found
-          try {
-            const { data: activityData } = await supabase.functions.invoke<ActivityLevel>('get-activity-level');
-            if (activityData) {
-              setActivityLevel(activityData);
-            }
-          } catch (err) {
-            console.error('Error fetching activity level:', err);
-          }
         }
       } catch (error) {
         handleError(error, { description: ERROR_MESSAGES.MATCH_ERROR });
@@ -72,6 +64,21 @@ const Matching = () => {
     const timeout = setTimeout(findMatch, TIMING.MATCHING_SEARCH_DELAY);
     return () => clearTimeout(timeout);
   }, [navigate, session]);
+
+  const checkActivity = async () => {
+    setCheckingActivity(true);
+    try {
+      const { data, error } = await supabase.functions.invoke<ActivityLevel>('get-activity-level');
+      if (error) throw error;
+      if (data) {
+        setActivityLevel(data);
+      }
+    } catch (error) {
+      console.error('Error checking activity:', error);
+    } finally {
+      setCheckingActivity(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
@@ -165,11 +172,26 @@ const Matching = () => {
                 Nobody's available at the moment. Check back again soon!
               </p>
               
-              {activityLevel && (
-                <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-2">
+                {!activityLevel ? (
+                  <button
+                    onClick={checkActivity}
+                    disabled={checkingActivity}
+                    className="text-sm font-bold underline hover:no-underline text-foreground/80 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkingActivity ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Checking...
+                      </span>
+                    ) : (
+                      'Check Activity'
+                    )}
+                  </button>
+                ) : (
                   <ActivityIndicator activityLevel={activityLevel} variant="full" />
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="space-y-3 pt-4">

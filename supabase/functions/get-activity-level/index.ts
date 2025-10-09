@@ -79,22 +79,25 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${availableCount} available users`);
 
-    // Apply fuzzing: ±1-2 random variance to prevent tracking individuals
-    const fuzzAmount = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-    const fuzzedCount = Math.max(0, availableCount + fuzzAmount);
+    // Apply enhanced fuzzing: ±3-5 random variance for better privacy
+    const fuzzAmount = Math.floor(Math.random() * 7) - 3; // -3 to +3
+    const fuzzedWithVariance = Math.max(0, availableCount + fuzzAmount);
+    
+    // Bucket to nearest 5 to reduce precision
+    const fuzzedCount = Math.round(fuzzedWithVariance / 5) * 5;
 
-    console.log(`Fuzzed count: ${fuzzedCount}`);
+    console.log(`Fuzzed count: ${fuzzedCount} (original: ${availableCount})`);
 
     // Determine activity level based on fuzzed count
     let level: string;
     let message: string;
     let icon: string;
 
-    if (fuzzedCount <= 2) {
+    if (fuzzedCount <= 5) {
       level = 'quiet';
       message = 'Very few people online right now';
       icon = '🔴';
-    } else if (fuzzedCount <= 9) {
+    } else if (fuzzedCount <= 15) {
       level = 'building';
       message = 'Some people are joining';
       icon = '🟡';

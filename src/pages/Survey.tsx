@@ -78,19 +78,27 @@ const Survey = () => {
 
     setSubmitting(true);
     try {
-      type SurveyAnswerInsert = TablesInsert<'survey_answers'>;
-
-      const answersArray: SurveyAnswerInsert[] = Object.entries(answers).map(([question_id, answer]) => ({
-        session_id: session?.id!,
+      const answersArray = Object.entries(answers).map(([question_id, answer]) => ({
         question_id,
         answer,
       }));
 
-      const { error } = await supabase
-        .from('survey_answers')
-        .insert(answersArray);
+      // Call edge function for server-side validation
+      const { data, error } = await supabase.functions.invoke('submit-survey-answers', {
+        body: {
+          session_id: session?.id!,
+          answers: answersArray,
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error submitting survey:', error);
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error('Survey submission failed');
+      }
 
       navigate("/matching");
     } catch (error) {

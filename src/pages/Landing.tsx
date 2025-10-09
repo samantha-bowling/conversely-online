@@ -4,7 +4,7 @@ import { ActivityIndicator } from "@/components/ActivityIndicator";
 import { useNavigate } from "react-router-dom";
 import { AgeGate } from "@/components/AgeGate";
 import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
-import converselyBanner from "@/assets/conversely-banner-optimized.png";
+import converselyBanner from "@/assets/conversely-banner-transparent.png";
 import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";

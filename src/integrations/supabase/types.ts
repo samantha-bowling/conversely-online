@@ -42,10 +42,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "blocked_pairs_session_a_fkey"
+            columns: ["session_a"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "blocked_pairs_session_b_fkey"
             columns: ["session_b"]
             isOneToOne: false
             referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocked_pairs_session_b_fkey"
+            columns: ["session_b"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
             referencedColumns: ["id"]
           },
         ]
@@ -87,10 +101,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "chat_rooms_session_a_fkey"
+            columns: ["session_a"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "chat_rooms_session_b_fkey"
             columns: ["session_b"]
             isOneToOne: false
             referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_rooms_session_b_fkey"
+            columns: ["session_b"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
             referencedColumns: ["id"]
           },
         ]
@@ -177,6 +205,13 @@ export type Database = {
             referencedRelation: "guest_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       survey_answers: {
@@ -209,11 +244,56 @@ export type Database = {
             referencedRelation: "guest_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "survey_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      guest_sessions_public: {
+        Row: {
+          avatar: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string | null
+          last_quick_exit: string | null
+          next_match_at: string | null
+          quick_exits: number | null
+          reputation_score: number | null
+          times_blocked: number | null
+          username: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string | null
+          last_quick_exit?: string | null
+          next_match_at?: string | null
+          quick_exits?: number | null
+          reputation_score?: number | null
+          times_blocked?: number | null
+          username?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string | null
+          last_quick_exit?: string | null
+          next_match_at?: string | null
+          quick_exits?: number | null
+          reputation_score?: number | null
+          times_blocked?: number | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_see_session: {

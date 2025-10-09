@@ -83,6 +83,9 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
       )
       .subscribe((status, err) => {
         console.log('[Realtime] Messages channel status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] ✅ Successfully subscribed to messages for room:', roomId);
+        }
         if (err) {
           console.error('[Realtime] Messages channel error:', err);
         }

@@ -21,6 +21,8 @@ import { useTypingPresence } from "@/hooks/useTypingPresence";
 import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import { useSessionExpiry } from "@/hooks/useSessionExpiry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
 import { Footer } from "@/components/Footer";
@@ -47,8 +49,18 @@ const Chat = () => {
   const [isEndingChat, setIsEndingChat] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
   const [showReflectionDialog, setShowReflectionDialog] = useState(false);
+  const [showNewMatchDialog, setShowNewMatchDialog] = useState(false);
+  const [showPartnerLeftDialog, setShowPartnerLeftDialog] = useState(false);
 
-  const { roomStatus, partnerUsername, partnerAvatar, statusAnnouncement, setStatusAnnouncement } = useChatRoom(roomId);
+  const { 
+    roomStatus, 
+    partnerUsername, 
+    partnerAvatar, 
+    statusAnnouncement, 
+    setStatusAnnouncement,
+    setIsUserInitiatedEnd,
+    isUserInitiatedEnd 
+  } = useChatRoom(roomId);
   
   // Monitor session expiry
   useSessionExpiry(session?.expires_at || null);
@@ -111,6 +123,7 @@ const Chat = () => {
   const handleEndChat = async () => {
     if (!roomId || !session || isEndingChat) return;
 
+    setIsUserInitiatedEnd(true);
     setIsEndingChat(true);
 
     try {
@@ -186,29 +199,45 @@ const Chat = () => {
     navigate("/");
   };
 
-  const handleBlock = async () => {
+  const handleReport = () => {
+    setShowReportSheet(true);
+  };
+
+  const handleNewMatch = async () => {
     if (!roomId || !session) return;
+    
+    setShowNewMatchDialog(false);
+    setIsUserInitiatedEnd(true);
+    setIsEndingChat(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke<BlockUserResponse>('block-user', {
-        body: {
-          room_id: roomId,
-        },
+      const { data, error } = await supabase.functions.invoke<EndChatResponse>('end-chat', {
+        body: { room_id: roomId },
       });
 
       if (error) {
-        handleApiError(error, ERROR_MESSAGES.BLOCK_USER_FAILED);
+        handleApiError(error, ERROR_MESSAGES.END_CHAT_FAILED);
         return;
       }
 
       if (data?.success) {
-        toast.success(SUCCESS_MESSAGES.USER_BLOCKED);
-        navigate("/");
+        // Skip reflection dialog and go directly to matching
+        toast.info("Finding you a new match...");
+        navigate("/matching");
       }
     } catch (error) {
-      handleApiError(error, ERROR_MESSAGES.BLOCK_USER_FAILED);
+      handleApiError(error, ERROR_MESSAGES.END_CHAT_FAILED);
+    } finally {
+      setIsEndingChat(false);
     }
   };
+
+  // Show partner left dialog when room ends and it wasn't initiated by current user
+  useEffect(() => {
+    if (roomStatus === "ended" && !isUserInitiatedEnd) {
+      setShowPartnerLeftDialog(true);
+    }
+  }, [roomStatus, isUserInitiatedEnd]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -249,6 +278,46 @@ const Chat = () => {
         onSkip={handleReflectionSkip}
       />
 
+      {/* New Match Confirmation Dialog */}
+      <Dialog open={showNewMatchDialog} onOpenChange={setShowNewMatchDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Find a New Match?</DialogTitle>
+            <DialogDescription>
+              This will end your current conversation and connect you with someone new.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewMatchDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleNewMatch} disabled={isEndingChat}>
+              {isEndingChat ? "Ending..." : "Find New Match"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Partner Left Dialog */}
+      <Dialog open={showPartnerLeftDialog} onOpenChange={setShowPartnerLeftDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Your partner has left the conversation</DialogTitle>
+            <DialogDescription>
+              Would you like to find a new match or return home?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => navigate("/matching")}>
+              Find New Match
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              Go Home
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <ChatHeader
         roomStatus={roomStatus}
@@ -259,7 +328,8 @@ const Chat = () => {
         currentAvatar={session?.avatar}
         isEndingChat={isEndingChat}
         onShowPrompt={handleShowPrompt}
-        onBlock={handleBlock}
+        onReport={handleReport}
+        onNewMatch={() => setShowNewMatchDialog(true)}
         onEndChat={handleEndChat}
       />
 

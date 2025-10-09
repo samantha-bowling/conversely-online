@@ -15,6 +15,8 @@ interface UseChatRoomReturn {
   partnerAvatar: string;
   statusAnnouncement: string;
   setStatusAnnouncement: (announcement: string) => void;
+  setIsUserInitiatedEnd: (value: boolean) => void;
+  isUserInitiatedEnd: boolean;
 }
 
 export const useChatRoom = (roomId: string): UseChatRoomReturn => {
@@ -25,6 +27,7 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
   const [partnerUsername, setPartnerUsername] = useState<string>("Anonymous");
   const [partnerAvatar, setPartnerAvatar] = useState<string>("👤");
   const [statusAnnouncement, setStatusAnnouncement] = useState("");
+  const [isUserInitiatedEnd, setIsUserInitiatedEnd] = useState(false);
 
   // Initialize room
   useEffect(() => {
@@ -97,12 +100,14 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
           const newStatus = payload.new.status;
           if (newStatus === "ended") {
             setRoomStatus("ended");
-            setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
-            toast.info(STATUS_MESSAGES.DISCONNECTED);
-            console.log('[Realtime] Partner left - redirecting in 2s');
-            setTimeout(() => {
-              navigate("/");
-            }, TIMING.ROOM_REDIRECT_DELAY);
+            
+            if (!isUserInitiatedEnd) {
+              setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
+              toast.info("Your partner has left the conversation");
+              console.log('[Realtime] Partner left - showing dialog');
+            } else {
+              console.log('[Realtime] Room ended by current user');
+            }
           }
         }
       )
@@ -126,5 +131,7 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
     partnerAvatar,
     statusAnnouncement,
     setStatusAnnouncement,
+    setIsUserInitiatedEnd,
+    isUserInitiatedEnd,
   };
 };

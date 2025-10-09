@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-export type ConnectionStatus = "connected" | "reconnecting" | "offline";
+export type ConnectionStatus = "connected" | "reconnecting" | "offline" | "partner_disconnected";
 
 export function useRealtimeConnection(channel: RealtimeChannel | null) {
   const [status, setStatus] = useState<ConnectionStatus>("connected");

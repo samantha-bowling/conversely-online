@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Lightbulb, Wifi, WifiOff } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Lightbulb, Wifi, WifiOff, Shuffle, Flag } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ConnectionStatus } from "@/hooks/useRealtimeConnection";
 
 interface ChatHeaderProps {
@@ -12,7 +12,8 @@ interface ChatHeaderProps {
   currentAvatar?: string;
   isEndingChat?: boolean;
   onShowPrompt: () => void;
-  onBlock: () => void;
+  onReport: () => void;
+  onNewMatch: () => void;
   onEndChat: () => void;
 }
 
@@ -24,86 +25,89 @@ export const ChatHeader = ({
   currentUsername = "You",
   currentAvatar = "👤",
   isEndingChat = false,
-  onShowPrompt, 
-  onBlock, 
+  onShowPrompt,
+  onReport,
+  onNewMatch,
   onEndChat 
 }: ChatHeaderProps) => {
-  const getConnectionBadge = () => {
+  const getConnectionBadgeClasses = () => {
     if (roomStatus === "ended") {
-      return (
-        <Badge variant="secondary" className="gap-1">
-          <WifiOff className="w-3 h-3" aria-hidden="true" />
-          Disconnected
-        </Badge>
-      );
+      return "bg-red-500/10 text-red-600 border-red-500/20";
     }
 
     switch (connectionStatus) {
       case "connected":
-        return (
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Wifi className="w-3 h-3" aria-hidden="true" />
-            Connected
-          </Badge>
-        );
+        return "bg-green-500/10 text-green-600 border-green-500/20";
+      case "partner_disconnected":
+        return "bg-orange-500/10 text-orange-600 border-orange-500/20";
       case "reconnecting":
-        return (
-          <Badge variant="secondary" className="gap-1 animate-pulse">
-            <Wifi className="w-3 h-3" aria-hidden="true" />
-            Reconnecting...
-          </Badge>
-        );
       case "offline":
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <WifiOff className="w-3 h-3" aria-hidden="true" />
-            Offline
-          </Badge>
-        );
+        return "bg-red-500/10 text-red-600 border-red-500/20";
     }
   };
 
-  return (
-    <header className="border-b border-border p-4 bg-card" role="banner">
-      <div className="flex items-center justify-between mb-3">
-        {/* Left: User info hierarchy */}
-        <div className="flex flex-col">
-          <div className="text-sm font-medium">
-            You: {currentAvatar} {currentUsername}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            chatting with {partnerAvatar} {partnerUsername}
-          </div>
-        </div>
-        
-        {/* Right: Subtle status badge */}
-        <div role="status" aria-live="polite">
-          {getConnectionBadge()}
-        </div>
-      </div>
+  const getConnectionText = () => {
+    if (roomStatus === "ended") return "Disconnected";
+    if (connectionStatus === "partner_disconnected") return "Partner Left";
+    if (connectionStatus === "connected") return "Connected";
+    return "Reconnecting";
+  };
 
-      {/* Action buttons row */}
-      <nav className="flex gap-2 justify-end" aria-label="Chat controls">
+  return (
+    <header className="border-b border-border px-4 py-3 bg-card flex items-center justify-between" role="banner">
+      {/* Left: Single-line header */}
+      <h2 className="font-semibold text-base">
+        You ({currentAvatar} {currentUsername}) are chatting with ({partnerAvatar} {partnerUsername})
+      </h2>
+      
+      {/* Right: All controls */}
+      <nav className="flex items-center gap-2" aria-label="Chat controls">
         <Button
           variant="ghost"
           size="sm"
           onClick={onShowPrompt}
-          className="gap-2"
           disabled={roomStatus === "ended"}
           aria-label="Show conversation prompt"
         >
-          <Lightbulb className="w-4 h-4" aria-hidden="true" />
+          <Lightbulb className="w-4 h-4 mr-1" aria-hidden="true" />
           Prompt
         </Button>
+        
+        {/* Connection Badge */}
+        <span
+          className={cn(
+            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
+            getConnectionBadgeClasses()
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          <Wifi className="w-3 h-3 mr-1" aria-hidden="true" />
+          {getConnectionText()}
+        </span>
+        
         <Button
           variant="outline"
           size="sm"
-          onClick={onBlock}
+          onClick={onNewMatch}
           disabled={roomStatus === "ended"}
-          aria-label="Block user and end conversation"
+          aria-label="Find new match"
         >
-          Block
+          <Shuffle className="w-4 h-4 mr-1" aria-hidden="true" />
+          New Match
         </Button>
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReport}
+          disabled={roomStatus === "ended"}
+          aria-label="Report user"
+        >
+          <Flag className="w-4 h-4 mr-1" aria-hidden="true" />
+          Report
+        </Button>
+        
         <Button
           variant="destructive"
           size="sm"

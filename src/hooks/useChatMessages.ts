@@ -34,6 +34,16 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
   useEffect(() => {
     if (!roomId) return;
 
+    console.log('[Realtime] Setting up messages channel:', roomId);
+
+    // Clean up any existing stale channels
+    const existingChannels = supabase.getChannels();
+    const staleChannel = existingChannels.find(ch => ch.topic === `messages:${roomId}`);
+    if (staleChannel) {
+      console.log('[Realtime] Removing stale messages channel');
+      supabase.removeChannel(staleChannel);
+    }
+
     const channel = supabase
       .channel(`messages:${roomId}`)
       .on(
@@ -45,6 +55,13 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
+          console.log('[Realtime] Message INSERT event received:', {
+            messageId: payload.new.id,
+            sessionId: payload.new.session_id,
+            content: payload.new.content?.substring(0, 20) + '...',
+            isMyMessage: payload.new.session_id === session?.id
+          });
+
           const newMsg = payload.new as MessagePayload;
           const sender = newMsg.session_id === session?.id ? "me" : "other";
           
@@ -64,11 +81,17 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Realtime] Messages channel status:', status);
+        if (err) {
+          console.error('[Realtime] Messages channel error:', err);
+        }
+      });
 
     setMessagesChannel(channel);
 
     return () => {
+      console.log('[Realtime] Cleaning up messages channel');
       supabase.removeChannel(channel);
       setMessagesChannel(null);
     };

@@ -67,6 +67,16 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
   useEffect(() => {
     if (!roomId) return;
 
+    console.log('[Realtime] Setting up room status channel:', roomId);
+
+    // Clean up any existing stale channels
+    const existingChannels = supabase.getChannels();
+    const staleChannel = existingChannels.find(ch => ch.topic === `room:${roomId}`);
+    if (staleChannel) {
+      console.log('[Realtime] Removing stale room channel');
+      supabase.removeChannel(staleChannel);
+    }
+
     const channel = supabase
       .channel(`room:${roomId}`)
       .on(
@@ -78,20 +88,33 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
           filter: `id=eq.${roomId}`,
         },
         (payload) => {
+          console.log('[Realtime] Room UPDATE event received:', {
+            roomId: payload.new.id,
+            newStatus: payload.new.status,
+            oldStatus: payload.old?.status
+          });
+
           const newStatus = payload.new.status;
           if (newStatus === "ended") {
             setRoomStatus("ended");
             setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
             toast.info(STATUS_MESSAGES.DISCONNECTED);
+            console.log('[Realtime] Partner left - redirecting in 2s');
             setTimeout(() => {
               navigate("/");
             }, TIMING.ROOM_REDIRECT_DELAY);
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Realtime] Room channel status:', status);
+        if (err) {
+          console.error('[Realtime] Room channel error:', err);
+        }
+      });
 
     return () => {
+      console.log('[Realtime] Cleaning up room channel');
       supabase.removeChannel(channel);
     };
   }, [roomId, navigate]);

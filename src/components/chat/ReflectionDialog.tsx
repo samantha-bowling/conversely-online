@@ -27,13 +27,25 @@ export const ReflectionDialog = ({
   const [rating, setRating] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("");
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    onSubmit(rating, feedback);
-    // Reset state
-    setRating(null);
-    setFeedback("");
-    setHoveredStar(null);
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(rating, feedback);
+      // Dialog will close via parent's setShowReflectionDialog(false)
+      // Add small delay for UX smoothness
+      setTimeout(() => {
+        setRating(null);
+        setFeedback("");
+        setHoveredStar(null);
+      }, 300);
+    } catch (error) {
+      console.error('Error submitting reflection:', error);
+      // Keep dialog open on error so user can retry
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSkip = () => {
@@ -112,9 +124,9 @@ export const ReflectionDialog = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!rating && !feedback.trim()}
+            disabled={(!rating && !feedback.trim()) || isSubmitting}
           >
-            Submit
+            {isSubmitting ? "Submitting..." : "Submit"}
           </Button>
         </div>
       </DialogContent>

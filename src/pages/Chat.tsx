@@ -44,6 +44,7 @@ const Chat = () => {
   const [shufflesRemaining, setShufflesRemaining] = useState(3);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isEndingChat, setIsEndingChat] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
   const [showReflectionDialog, setShowReflectionDialog] = useState(false);
 
@@ -108,7 +109,9 @@ const Chat = () => {
   };
 
   const handleEndChat = async () => {
-    if (!roomId || !session) return;
+    if (!roomId || !session || isEndingChat) return;
+
+    setIsEndingChat(true);
 
     try {
       const { data, error } = await supabase.functions.invoke<EndChatResponse>('end-chat', {
@@ -123,11 +126,13 @@ const Chat = () => {
       }
 
       if (data?.success) {
-        // Show reflection dialog instead of immediate navigation
+        // Show reflection dialog immediately after success
         setShowReflectionDialog(true);
       }
     } catch (error) {
       handleApiError(error, ERROR_MESSAGES.END_CHAT_FAILED);
+    } finally {
+      setIsEndingChat(false);
     }
   };
 
@@ -252,6 +257,7 @@ const Chat = () => {
         partnerAvatar={partnerAvatar}
         currentUsername={session?.username}
         currentAvatar={session?.avatar}
+        isEndingChat={isEndingChat}
         onShowPrompt={handleShowPrompt}
         onBlock={handleBlock}
         onEndChat={handleEndChat}

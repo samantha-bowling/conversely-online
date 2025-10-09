@@ -10,6 +10,7 @@ interface ChatHeaderProps {
   partnerAvatar: string;
   currentUsername?: string;
   currentAvatar?: string;
+  isEndingChat?: boolean;
   onShowPrompt: () => void;
   onBlock: () => void;
   onEndChat: () => void;
@@ -22,6 +23,7 @@ export const ChatHeader = ({
   partnerAvatar,
   currentUsername = "You",
   currentAvatar = "👤",
+  isEndingChat = false,
   onShowPrompt, 
   onBlock, 
   onEndChat 
@@ -39,7 +41,7 @@ export const ChatHeader = ({
     switch (connectionStatus) {
       case "connected":
         return (
-          <Badge variant="default" className="gap-1 bg-green-500 hover:bg-green-600">
+          <Badge variant="secondary" className="gap-1 text-xs">
             <Wifi className="w-3 h-3" aria-hidden="true" />
             Connected
           </Badge>
@@ -62,18 +64,26 @@ export const ChatHeader = ({
   };
 
   return (
-    <header className="border-b border-border p-4 flex items-center justify-between bg-card" role="banner">
-      <div className="flex items-center gap-3">
-        <div>
-          <div className="text-xs text-muted-foreground">You: {currentAvatar} {currentUsername}</div>
-          <div className="text-xs text-muted-foreground mt-1">Chatting with</div>
-          <div className="font-bold text-lg">{partnerAvatar} {partnerUsername}</div>
+    <header className="border-b border-border p-4 bg-card" role="banner">
+      <div className="flex items-center justify-between mb-3">
+        {/* Left: User info hierarchy */}
+        <div className="flex flex-col">
+          <div className="text-sm font-medium">
+            You: {currentAvatar} {currentUsername}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            chatting with {partnerAvatar} {partnerUsername}
+          </div>
         </div>
+        
+        {/* Right: Subtle status badge */}
         <div role="status" aria-live="polite">
           {getConnectionBadge()}
         </div>
       </div>
-      <nav className="flex gap-2" aria-label="Chat controls">
+
+      {/* Action buttons row */}
+      <nav className="flex gap-2 justify-end" aria-label="Chat controls">
         <Button
           variant="ghost"
           size="sm"
@@ -98,10 +108,10 @@ export const ChatHeader = ({
           variant="destructive"
           size="sm"
           onClick={onEndChat}
-          disabled={roomStatus === "ended"}
+          disabled={roomStatus === "ended" || isEndingChat}
           aria-label="End conversation"
         >
-          End Chat
+          {isEndingChat ? "Ending..." : "End Chat"}
         </Button>
       </nav>
     </header>

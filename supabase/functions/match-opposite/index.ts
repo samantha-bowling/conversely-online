@@ -172,11 +172,30 @@ Deno.serve(async (req) => {
       throw new Error('No survey answers found');
     }
 
-    // Get all other sessions with answers
+    // Get all active chat rooms to exclude sessions already in conversation
+    const { data: activeSessions } = await supabase
+      .from('chat_rooms')
+      .select('session_a, session_b')
+      .eq('status', 'active');
+
+    // Create set of sessions to exclude (already in active rooms)
+    const busySessionIds = new Set<string>();
+    if (activeSessions) {
+      for (const room of activeSessions) {
+        busySessionIds.add(room.session_a);
+        busySessionIds.add(room.session_b);
+      }
+    }
+    console.log('Active room exclusion - busy sessions:', busySessionIds.size);
+
+    // Get all other sessions with answers, filtering for freshness
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: otherSessions } = await supabase
       .from('survey_answers')
-      .select('session_id, question_id, answer')
-      .neq('session_id', session_id);
+      .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at)')
+      .neq('session_id', session_id)
+      .gt('guest_sessions.expires_at', new Date().toISOString())
+      .gt('guest_sessions.created_at', tenMinutesAgo);
 
     if (!otherSessions || otherSessions.length === 0) {
       return new Response(
@@ -211,6 +230,12 @@ Deno.serve(async (req) => {
 
     for (const [otherId, otherAnswers] of sessionAnswers.entries()) {
       if (blockedIds.has(otherId)) continue;
+      
+      // Skip sessions already in active rooms
+      if (busySessionIds.has(otherId)) {
+        console.log('Skipping session already in active room:', otherId);
+        continue;
+      }
 
       // Check if potential match is a serial troll or same user
       const { data: otherSession } = await supabase

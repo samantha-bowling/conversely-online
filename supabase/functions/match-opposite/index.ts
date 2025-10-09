@@ -212,15 +212,20 @@ Deno.serve(async (req) => {
     for (const [otherId, otherAnswers] of sessionAnswers.entries()) {
       if (blockedIds.has(otherId)) continue;
 
-      // Check if potential match is a serial troll
+      // Check if potential match is a serial troll or same user
       const { data: otherSession } = await supabase
         .from('guest_sessions')
-        .select('times_blocked')
+        .select('times_blocked, user_id')
         .eq('id', otherId)
         .single();
 
       if (otherSession && otherSession.times_blocked >= 5) {
         console.log('Skipping serial troll from matching:', otherId);
+        continue;
+      }
+
+      if (otherSession && otherSession.user_id === session.user_id) {
+        console.log('Skipping self-match:', otherId);
         continue;
       }
 

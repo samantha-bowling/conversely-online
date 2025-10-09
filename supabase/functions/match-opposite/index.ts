@@ -188,14 +188,17 @@ Deno.serve(async (req) => {
     }
     console.log('Active room exclusion - busy sessions:', busySessionIds.size);
 
-    // Get all other sessions with answers, filtering for freshness
+    // Get all other sessions with answers, filtering for freshness and test mode
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: otherSessions } = await supabase
       .from('survey_answers')
-      .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at)')
+      .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at, is_test)')
       .neq('session_id', session_id)
+      .eq('guest_sessions.is_test', sessionData.is_test)
       .gt('guest_sessions.expires_at', new Date().toISOString())
       .gt('guest_sessions.created_at', tenMinutesAgo);
+    
+    console.log(`[Matching] Found ${otherSessions?.length || 0} potential matches (is_test=${sessionData.is_test})`);
 
     if (!otherSessions || otherSessions.length === 0) {
       return new Response(

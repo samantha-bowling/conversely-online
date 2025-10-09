@@ -54,7 +54,7 @@ export const ChatHeader = ({
   };
 
   return (
-    <header className="border-b border-border px-4 py-3 bg-card flex items-center justify-between" role="banner">
+    <header className="z-10 relative border-b border-border px-4 py-3 bg-card flex items-center justify-between" role="banner">
       {/* Left: Single-line header */}
       <h2 className="font-semibold text-base">
         You ({currentAvatar} {currentUsername}) are chatting with ({partnerAvatar} {partnerUsername})

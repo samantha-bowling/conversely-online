@@ -26,6 +26,45 @@ const Survey = () => {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Check for session expiry and stale localStorage
+  useEffect(() => {
+    const expiry = localStorage.getItem('session_expires_at');
+    if (expiry && new Date(expiry) < new Date()) {
+      console.log('[Survey] Session expired, clearing survey submission flag');
+      localStorage.removeItem('survey_submitted');
+    }
+
+    // Check if already submitted (client-side check)
+    const alreadySubmittedClient = localStorage.getItem('survey_submitted') === 'true';
+    
+    if (alreadySubmittedClient) {
+      console.log('[Survey] Survey already submitted (localStorage check), redirecting...');
+      toast.info("Survey already completed");
+      navigate('/matching', { replace: true });
+      return;
+    }
+
+    // Check if already submitted (server-side verification)
+    const checkServerSubmission = async () => {
+      if (!session?.id) return;
+      
+      const { data, error } = await supabase
+        .from('survey_answers')
+        .select('id')
+        .eq('session_id', session.id)
+        .limit(1);
+      
+      if (!error && data && data.length > 0) {
+        console.log('[Survey] Survey already submitted (server check), redirecting...');
+        localStorage.setItem('survey_submitted', 'true');
+        toast.info("Survey already completed");
+        navigate('/matching', { replace: true });
+      }
+    };
+    
+    checkServerSubmission();
+  }, [session, navigate]);
+
   // Fetch synchronized question pack on mount
   useEffect(() => {
     const fetchQuestionPack = async () => {
@@ -108,6 +147,10 @@ const Survey = () => {
       if (!data?.success) {
         throw new Error('Survey submission failed');
       }
+
+      // Mark as submitted in localStorage
+      localStorage.setItem('survey_submitted', 'true');
+      localStorage.setItem('session_expires_at', session?.expires_at || '');
 
       navigate("/matching");
     } catch (error) {

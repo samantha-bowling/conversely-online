@@ -70,10 +70,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       const start = performance.now();
 
       try {
+        // Check for test mode flag
+        const isTestMode = localStorage.getItem('test_mode') === 'true';
+        console.log('[Session] Creating session with test mode:', isTestMode);
+        
         // Call edge function - JWT is automatically included in Authorization header
         const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
           'create-guest-session',
           {
+            body: { 
+              is_test: isTestMode 
+            },
             headers: {
               'x-consent-given': 'true'
             }

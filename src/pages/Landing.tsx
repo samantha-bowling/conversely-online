@@ -53,7 +53,7 @@ const Landing = () => {
       setCheckingActivity(false);
     }
   };
-  return <div className={`min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle ${isTestMode ? 'pt-16' : ''}`}>
+  return <div className={`min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle ${isTestMode ? 'pt-14' : ''}`}>
       {isTestMode && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 text-center py-2 text-sm font-semibold z-50 shadow-sm">
           🧪 TEST MODE — Safe Development Environment

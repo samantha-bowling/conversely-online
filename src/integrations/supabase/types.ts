@@ -129,6 +129,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          is_test: boolean | null
           last_quick_exit: string | null
           next_match_at: string | null
           quick_exits: number
@@ -142,6 +143,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          is_test?: boolean | null
           last_quick_exit?: string | null
           next_match_at?: string | null
           quick_exits?: number
@@ -155,6 +157,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          is_test?: boolean | null
           last_quick_exit?: string | null
           next_match_at?: string | null
           quick_exits?: number

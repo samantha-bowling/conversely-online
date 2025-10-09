@@ -55,11 +55,13 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
+          console.log('[Realtime] 🔔 Event received:', payload.eventType, payload.new || payload.old);
           console.log('[Realtime] Message INSERT event received:', {
             messageId: payload.new.id,
             sessionId: payload.new.session_id,
             content: payload.new.content?.substring(0, 20) + '...',
-            isMyMessage: payload.new.session_id === session?.id
+            isMyMessage: payload.new.session_id === session?.id,
+            timestamp: new Date().toISOString()
           });
 
           const newMsg = payload.new as MessagePayload;
@@ -83,6 +85,8 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
       )
       .subscribe((status, err) => {
         console.log('[Realtime] Messages channel status:', status);
+        console.log('[Realtime] Channel topic:', channel.topic);
+        console.log('[Realtime] Channel state:', channel.state);
         if (status === 'SUBSCRIBED') {
           console.log('[Realtime] ✅ Successfully subscribed to messages for room:', roomId);
         }

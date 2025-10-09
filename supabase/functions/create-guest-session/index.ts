@@ -118,6 +118,12 @@ Deno.serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
+    // Parse request body for is_test flag
+    const req_body = await req.json().catch(() => ({}));
+    const isTest = req_body.is_test || false;
+    
+    console.log('[Session] Creating guest session, is_test:', isTest);
+
     const username = generateUsername();
     const avatar = generateAvatar();
 
@@ -127,7 +133,8 @@ Deno.serve(async (req) => {
       .insert({
         username,
         avatar,
-        user_id: user.id  // Explicitly set from verified JWT
+        user_id: user.id,  // Explicitly set from verified JWT
+        is_test: isTest
       })
       .select()
       .single();

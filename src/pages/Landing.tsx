@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConversationButton } from "@/components/ConversationButton";
 import { ActivityIndicator } from "@/components/ActivityIndicator";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AgeGate } from "@/components/AgeGate";
 import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
@@ -12,10 +12,22 @@ import type { ActivityLevel } from "@/types";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showAgeGate, setShowAgeGate] = useState(false);
   const [needsLegalUpdate, setNeedsLegalUpdate] = useState(false);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [checkingActivity, setCheckingActivity] = useState(false);
+  
+  // Detect test mode from URL
+  const isTestMode = location.search.includes('test=true');
+
+  // Store test mode flag in localStorage for persistence
+  useEffect(() => {
+    if (isTestMode) {
+      localStorage.setItem('test_mode', 'true');
+      console.log('[Test Mode] Active - sessions will be marked as test');
+    }
+  }, [isTestMode]);
 
   const handleStartClick = () => {
     const needsUpdate = needsReAcceptance();
@@ -41,7 +53,13 @@ const Landing = () => {
       setCheckingActivity(false);
     }
   };
-  return <div className="min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle">
+  return <div className={`min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle ${isTestMode ? 'pt-16' : ''}`}>
+      {isTestMode && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 text-center py-2 text-sm font-semibold z-50 shadow-sm">
+          🧪 TEST MODE — Safe Development Environment
+        </div>
+      )}
+      
       <div className="max-w-md w-full space-y-8 text-center">
         <div className="mb-8">
           <img 

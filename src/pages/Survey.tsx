@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
 import { useSession } from "@/contexts/SessionContext";
@@ -68,7 +68,9 @@ const Survey = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
+    if (submitting) return; // Prevent double-click
+    
     // Final legal check before submission
     if (!isAcceptanceCurrent()) {
       toast.error("Please review and accept our legal documents");
@@ -92,6 +94,13 @@ const Survey = () => {
       });
 
       if (error) {
+        // Handle 409 "already submitted" gracefully
+        if (error.message?.includes('409') || error.message?.toLowerCase().includes('already submitted')) {
+          toast.info("Survey already completed, continuing to matching...");
+          setTimeout(() => navigate("/matching"), 1200);
+          return;
+        }
+        
         console.error('Error submitting survey:', error);
         throw error;
       }
@@ -103,9 +112,10 @@ const Survey = () => {
       navigate("/matching");
     } catch (error) {
       handleError(error, { description: ERROR_MESSAGES.SURVEY_SAVE_ERROR });
+    } finally {
       setSubmitting(false);
     }
-  };
+  }, [submitting, answers, session, navigate]);
 
   const handleGoBack = () => {
     setShowConfirmation(false);
@@ -209,8 +219,17 @@ const Survey = () => {
               <ConversationButton
                 onClick={handleSubmit}
                 disabled={submitting}
+                aria-disabled={submitting}
+                aria-label={submitting ? "Submitting your answers..." : "Start matching"}
               >
-                {submitting ? "Starting..." : "Start Matching"}
+                {submitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </span>
+                ) : (
+                  "Start Matching"
+                )}
               </ConversationButton>
               <ConversationButton
                 variant="outline"

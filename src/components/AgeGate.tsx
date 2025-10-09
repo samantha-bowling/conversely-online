@@ -533,12 +533,12 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
             aria-busy={submitting}
           >
             {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Creating your session...
-              </>
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Preparing your session...
+              </span>
             ) : (
-              'Start Conversing'
+              "Let's Get Started"
             )}
           </Button>
         </div>

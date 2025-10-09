@@ -45,7 +45,11 @@ export const handleApiError = (error: unknown, fallbackMessage: string): void =>
     const message = String(error.message);
     
     // Handle known error types
-    if (message.includes('Rate limit exceeded')) {
+    if (message.includes('409') || message.toLowerCase().includes('duplicate') || message.toLowerCase().includes('already submitted')) {
+      handleError(error, {
+        description: 'Survey already completed - redirecting...',
+      });
+    } else if (message.includes('Rate limit exceeded')) {
       handleError(error, {
         description: 'Please slow down - you\'re sending messages too quickly',
       });

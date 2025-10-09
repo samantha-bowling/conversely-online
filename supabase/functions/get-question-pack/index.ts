@@ -1,23 +1,9 @@
+import { ALL_QUESTION_IDS } from '../_shared/survey-questions.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// All 60 question IDs from survey.ts
-const ALL_QUESTION_IDS = [
-  "energy-style", "planning", "learning", "recharge", "texting",
-  "conversation", "conflict", "decisions", "punctuality", "weekend",
-  "feedback", "goals", "space", "topic", "chat-role",
-  "time-off", "stories", "thinking", "humor", "time-preference",
-  "discussion", "surprises", "change", "outlook", "group-role",
-  "work-focus", "creativity-spark", "nature-pull", "souvenirs", "learning-check",
-  "notes-style", "music-notice", "movies", "quick-communication", "social-platforms",
-  "tracking-progress", "decision-timing", "taste-preference", "pets", "games",
-  "exercise-pace", "reading-format", "digital-organizing", "workspace-sound", "weather-thrive",
-  "everyday-setting", "beverage", "cooking-approach", "shopping-mindset", "photography-style",
-  "wardrobe-leaning", "cleaning-approach", "alarm-routine", "book-habit", "getting-around",
-  "phone-settings", "dining-picks", "work-break-style", "home-projects", "gift-giving-style"
-];
 
 // Seeded random number generator for deterministic shuffling
 function seededRandom(seed: number) {
@@ -29,7 +15,7 @@ function seededRandom(seed: number) {
 }
 
 // Fisher-Yates shuffle with seeded random
-function seededShuffle<T>(array: T[], seed: number): T[] {
+function seededShuffle<T>(array: readonly T[], seed: number): T[] {
   const shuffled = [...array];
   const random = seededRandom(seed);
   

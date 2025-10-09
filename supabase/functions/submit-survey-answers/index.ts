@@ -1,24 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { validateMessageContent, sanitizeText } from '../_shared/validation.ts';
+import { ALL_QUESTION_IDS, isValidQuestionId } from '../_shared/survey-questions.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Define allowed questions from the survey
-const ALLOWED_QUESTION_IDS = [
-  'morning_night', 'plan_spontaneous', 'city_nature', 'books_movies',
-  'pizza_sushi', 'home_out', 'coffee_tea', 'summer_winter',
-  'dogs_cats', 'beach_mountains', 'save_spend', 'early_late',
-  'call_text', 'comedy_drama', 'sweet_savory', 'music_silence',
-  'gym_walk', 'new_familiar', 'group_solo', 'organized_messy',
-  'hot_cold', 'cooking_ordering', 'tech_nature', 'fast_slow',
-  'fiction_nonfiction', 'travel_home', 'risk_safe', 'loud_quiet',
-  'collab_independent', 'theory_practice', 'debate_agree', 'visual_verbal',
-  'leader_follower', 'change_routine', 'big_small', 'formal_casual',
-  'analog_digital', 'quantity_quality', 'now_later', 'explore_plan'
-];
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -108,8 +95,8 @@ Deno.serve(async (req) => {
     for (const answer of answers) {
       const { question_id, answer: answerText } = answer;
 
-      // Validate question_id
-      if (!ALLOWED_QUESTION_IDS.includes(question_id)) {
+      // Validate question_id using type-safe helper
+      if (!isValidQuestionId(question_id)) {
         console.error(`Invalid question_id: ${question_id}`);
         return new Response(
           JSON.stringify({ error: `Invalid question_id: ${question_id}` }),

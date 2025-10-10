@@ -64,7 +64,12 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
       }
 
       if (data.status === "ended") {
-        navigate("/");
+        // Don't auto-redirect - let Chat.tsx handle the ended state with dialog
+        console.log('[useChatRoom] Initial fetch found ended room - setting state without redirect');
+        setRoomStatus("ended");
+        setPartnerSessionId(data.partner_id);
+        setPartnerUsername(data.partner_username);
+        setPartnerAvatar(data.partner_avatar);
         return;
       }
 

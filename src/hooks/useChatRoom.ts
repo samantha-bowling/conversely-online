@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,18 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
   const [partnerAvatar, setPartnerAvatar] = useState<string>("👤");
   const [statusAnnouncement, setStatusAnnouncement] = useState("");
   const [isUserInitiatedEnd, setIsUserInitiatedEnd] = useState(false);
+  
+  // Refs for tracking state without causing re-renders
+  const isUserInitiatedEndRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  // Track component mount state
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Initialize room
   useEffect(() => {
@@ -91,7 +103,8 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
           filter: `id=eq.${roomId}`,
         },
         (payload) => {
-          console.log('[Realtime] Room UPDATE event received:', {
+          const timestamp = new Date().toISOString();
+          console.log(`[Realtime ${timestamp}] Room UPDATE event received:`, {
             roomId: payload.new.id,
             newStatus: payload.new.status,
             oldStatus: payload.old?.status
@@ -99,30 +112,46 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
 
           const newStatus = payload.new.status;
           if (newStatus === "ended") {
+            // Guard: Only update state if component is still mounted
+            if (!isMountedRef.current) {
+              console.log(`[Realtime ${timestamp}] Component unmounted, skipping state update`);
+              return;
+            }
+
             setRoomStatus("ended");
             
-            if (!isUserInitiatedEnd) {
+            // Use ref instead of state to avoid dependency
+            if (!isUserInitiatedEndRef.current) {
               setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
-              toast.info("Your partner has left the conversation");
-              console.log('[Realtime] Partner left - showing dialog');
+              // Toast removed - dialog will handle the notification
+              console.log(`[Realtime ${timestamp}] Partner left - dialog will show`);
             } else {
-              console.log('[Realtime] Room ended by current user');
+              console.log(`[Realtime ${timestamp}] Room ended by current user`);
             }
           }
         }
       )
       .subscribe((status, err) => {
-        console.log('[Realtime] Room channel status:', status);
+        const timestamp = new Date().toISOString();
+        console.log(`[Realtime ${timestamp}] Room channel status:`, status);
         if (err) {
-          console.error('[Realtime] Room channel error:', err);
+          console.error(`[Realtime ${timestamp}] Room channel error:`, err);
         }
       });
 
     return () => {
-      console.log('[Realtime] Cleaning up room channel');
+      const timestamp = new Date().toISOString();
+      console.log(`[Realtime ${timestamp}] Cleaning up room channel`);
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [roomId, navigate, isUserInitiatedEnd]);
+  }, [roomId]); // FIXED: Removed navigate and isUserInitiatedEnd from dependencies
+
+  // Wrapper function to update both state and ref
+  const setIsUserInitiatedEndWrapper = (value: boolean) => {
+    isUserInitiatedEndRef.current = value;
+    setIsUserInitiatedEnd(value);
+  };
 
   return {
     roomStatus,
@@ -131,7 +160,7 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
     partnerAvatar,
     statusAnnouncement,
     setStatusAnnouncement,
-    setIsUserInitiatedEnd,
+    setIsUserInitiatedEnd: setIsUserInitiatedEndWrapper,
     isUserInitiatedEnd,
   };
 };

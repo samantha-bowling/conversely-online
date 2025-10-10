@@ -6,21 +6,34 @@ interface PostChatDialogProps {
   onNewConversation: () => void;
   onReturnHome: () => void;
   onClose?: () => void; // Soft close option
+  variant?: 'user-ended' | 'partner-left'; // Differentiate between scenarios
+  partnerUsername?: string; // For personalized message
+  onReflection?: () => void; // Optional reflection callback for partner-left
 }
 
 export const PostChatDialog = ({ 
   open, 
   onNewConversation, 
   onReturnHome,
-  onClose 
+  onClose,
+  variant = 'user-ended',
+  partnerUsername = 'Your partner',
+  onReflection
 }: PostChatDialogProps) => {
+  // Determine content based on variant
+  const title = variant === 'partner-left' 
+    ? `${partnerUsername} has left the chat for now...`
+    : 'Thank you for chatting!';
+  
+  const description = 'What would you like to do next?';
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md animate-fade-in">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Thank you for chatting!</DialogTitle>
+          <DialogTitle className="text-2xl">{title}</DialogTitle>
           <DialogDescription className="text-base pt-2">
-            What would you like to do next?
+            {description}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 py-4">
@@ -39,6 +52,16 @@ export const PostChatDialog = ({
           >
             Return home
           </Button>
+          
+          {/* Optional reflection link - shown for partner-left variant */}
+          {onReflection && variant === 'partner-left' && (
+            <button
+              onClick={onReflection}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline mt-2"
+            >
+              Share your reflection
+            </button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

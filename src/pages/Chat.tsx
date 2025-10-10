@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/contexts/SessionContext";
@@ -51,8 +51,18 @@ const Chat = () => {
   const [showReportSheet, setShowReportSheet] = useState(false);
   const [showReflectionDialog, setShowReflectionDialog] = useState(false);
   const [showNewMatchDialog, setShowNewMatchDialog] = useState(false);
-  const [showPartnerLeftDialog, setShowPartnerLeftDialog] = useState(false);
+  const [showReflectionFromPartnerLeft, setShowReflectionFromPartnerLeft] = useState(false);
   const [showPostChatDialog, setShowPostChatDialog] = useState(false);
+  
+  // Track component mount state for toast timing guard
+  const isMounted = useRef(true);
+  
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const { 
     roomStatus, 
@@ -192,7 +202,10 @@ const Chat = () => {
         console.error('Failed to submit reflection:', error);
         // Don't block navigation on reflection submission failure
       } else {
-        toast.success('Thank you for your feedback!');
+        // Guard toast timing - only show if component is still mounted
+        if (isMounted.current) {
+          toast.success('Thank you for your feedback!');
+        }
       }
     } catch (error) {
       console.error('Error submitting reflection:', error);
@@ -205,6 +218,52 @@ const Chat = () => {
   const handleReflectionSkip = () => {
     setShowReflectionDialog(false);
     setShowPostChatDialog(true); // Show modal instead of direct navigation
+  };
+
+  // Handler for reflection from partner-left dialog
+  const handlePartnerLeftReflection = () => {
+    console.log('[Chat] Opening reflection from partner-left dialog');
+    setShowPostChatDialog(false);
+    setShowReflectionFromPartnerLeft(true);
+  };
+
+  const handlePartnerLeftReflectionSubmit = async (rating: number | null, feedback: string) => {
+    if (!roomId || !session) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('submit-reflection', {
+        body: {
+          room_id: roomId,
+          rating,
+          feedback: feedback.trim() || null,
+        },
+      });
+
+      if (error) {
+        console.error('Failed to submit reflection:', error);
+      } else {
+        // Guard toast timing - only show if component is still mounted
+        if (isMounted.current) {
+          toast.success('Thank you for your feedback!');
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting reflection:', error);
+    } finally {
+      setShowReflectionFromPartnerLeft(false);
+      // Return to partner-left dialog to let user choose next action
+      setShowPostChatDialog(true);
+    }
+  };
+
+  const handlePartnerLeftReflectionSkip = () => {
+    console.log('[Chat] Skipping reflection from partner-left dialog');
+    setShowReflectionFromPartnerLeft(false);
+    // Return to partner-left dialog
+    setShowPostChatDialog(true);
   };
 
   const handlePostChatNewConversation = () => {
@@ -256,12 +315,24 @@ const Chat = () => {
     }
   };
 
-  // Show partner left dialog when room ends and it wasn't initiated by current user
+  // Show post-chat dialog when room ends (handles both user-ended and partner-left)
   useEffect(() => {
     if (roomStatus === "ended" && !isUserInitiatedEnd) {
-      setShowPartnerLeftDialog(true);
+      console.log('[Chat] Partner left - showing PostChatDialog with partner-left variant');
+      setShowPostChatDialog(true);
     }
   }, [roomStatus, isUserInitiatedEnd]);
+
+  // Debug logging for testing rapid navigation
+  useEffect(() => {
+    console.log('[Chat Debug] State:', {
+      roomStatus,
+      isUserInitiatedEnd,
+      showPostChatDialog,
+      showReflectionDialog,
+      showReflectionFromPartnerLeft
+    });
+  }, [roomStatus, isUserInitiatedEnd, showPostChatDialog, showReflectionDialog, showReflectionFromPartnerLeft]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -294,12 +365,20 @@ const Chat = () => {
         onInsert={handleInsertPrompt}
       />
 
-      {/* Reflection Dialog */}
+      {/* Reflection Dialog - User-initiated end */}
       <ReflectionDialog
         open={showReflectionDialog}
         onOpenChange={setShowReflectionDialog}
         onSubmit={handleReflectionSubmit}
         onSkip={handleReflectionSkip}
+      />
+
+      {/* Reflection Dialog - Partner left (optional) */}
+      <ReflectionDialog
+        open={showReflectionFromPartnerLeft}
+        onOpenChange={setShowReflectionFromPartnerLeft}
+        onSubmit={handlePartnerLeftReflectionSubmit}
+        onSkip={handlePartnerLeftReflectionSkip}
       />
 
       {/* New Match Confirmation Dialog */}
@@ -322,32 +401,15 @@ const Chat = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Partner Left Dialog */}
-      <Dialog open={showPartnerLeftDialog} onOpenChange={setShowPartnerLeftDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Your partner has left the conversation</DialogTitle>
-            <DialogDescription>
-              Would you like to find a new match or return home?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => navigate("/matching")}>
-              Find New Match
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/")}>
-              Go Home
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Post-Chat Dialog */}
+      {/* Post-Chat Dialog - handles both user-ended and partner-left */}
       <PostChatDialog
         open={showPostChatDialog}
         onNewConversation={handlePostChatNewConversation}
         onReturnHome={handlePostChatReturnHome}
         onClose={handlePostChatClose}
+        variant={isUserInitiatedEnd ? 'user-ended' : 'partner-left'}
+        partnerUsername={partnerUsername}
+        onReflection={!isUserInitiatedEnd ? handlePartnerLeftReflection : undefined}
       />
 
       {/* Header */}

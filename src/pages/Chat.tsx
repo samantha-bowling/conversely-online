@@ -160,10 +160,16 @@ const Chat = () => {
   };
 
   const handleShowPrompt = () => {
-    // Reset shuffles when opening dialog
-    setShufflesRemaining(3);
     setShowPromptDialog(true);
   };
+
+  // Reset shuffle counter only when entering a new room
+  useEffect(() => {
+    if (roomId) {
+      setShufflesRemaining(3);
+      setCurrentPrompt(getRandomPrompt());
+    }
+  }, [roomId]);
 
   const handleReflectionSubmit = async (rating: number | null, feedback: string) => {
     if (!roomId || !session) {

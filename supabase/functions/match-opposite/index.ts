@@ -289,17 +289,66 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create chat room
+    // Final race condition check: verify neither user already entered a room
+    const finalCheck = await supabase
+      .from('chat_rooms')
+      .select('id, session_a, session_b')
+      .or(`session_a.eq.${session_id},session_b.eq.${session_id},session_a.eq.${bestMatch},session_b.eq.${bestMatch}`)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (finalCheck.data) {
+      console.log('Race condition detected - user already in room:', finalCheck.data.id);
+      return new Response(
+        JSON.stringify({
+          status: 'match_found',
+          room_id: finalCheck.data.id,
+        }),
+        {
+          headers: securityHeaders,
+          status: 200,
+        }
+      );
+    }
+
+    // Canonical ordering: always insert sessions in sorted order to prevent (A,B) vs (B,A) duplicates
+    const [sessionA, sessionB] = [session_id, bestMatch].sort();
+    
     const { data: room, error: roomError } = await supabase
       .from('chat_rooms')
       .insert({
-        session_a: session_id,
-        session_b: bestMatch,
+        session_a: sessionA,
+        session_b: sessionB,
       })
       .select()
       .single();
 
-    if (roomError) throw roomError;
+    // Handle unique constraint violation (code 23505) - race condition caught by database
+    if (roomError) {
+      if (roomError.code === '23505') {
+        console.log('Unique constraint violation - fetching existing room');
+        const { data: existingRoom } = await supabase
+          .from('chat_rooms')
+          .select('id')
+          .or(`and(session_a.eq.${sessionA},session_b.eq.${sessionB}),and(session_a.eq.${sessionB},session_b.eq.${sessionA})`)
+          .eq('status', 'active')
+          .single();
+        
+        if (existingRoom) {
+          return new Response(
+            JSON.stringify({
+              status: 'match_found',
+              room_id: existingRoom.id,
+            }),
+            {
+              headers: securityHeaders,
+              status: 200,
+            }
+          );
+        }
+      }
+      throw roomError;
+    }
 
     // Update cooldown with reputation-based timing
     await supabase

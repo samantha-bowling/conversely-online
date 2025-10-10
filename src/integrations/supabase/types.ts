@@ -130,6 +130,8 @@ export type Database = {
           expires_at: string
           id: string
           is_test: boolean | null
+          last_matched_at: string | null
+          last_matched_session_id: string | null
           last_quick_exit: string | null
           next_match_at: string | null
           quick_exits: number
@@ -144,6 +146,8 @@ export type Database = {
           expires_at?: string
           id?: string
           is_test?: boolean | null
+          last_matched_at?: string | null
+          last_matched_session_id?: string | null
           last_quick_exit?: string | null
           next_match_at?: string | null
           quick_exits?: number
@@ -158,6 +162,8 @@ export type Database = {
           expires_at?: string
           id?: string
           is_test?: boolean | null
+          last_matched_at?: string | null
+          last_matched_session_id?: string | null
           last_quick_exit?: string | null
           next_match_at?: string | null
           quick_exits?: number
@@ -166,7 +172,22 @@ export type Database = {
           user_id?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guest_sessions_last_matched_session_id_fkey"
+            columns: ["last_matched_session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_last_matched_session_id_fkey"
+            columns: ["last_matched_session_id"]
+            isOneToOne: false
+            referencedRelation: "guest_sessions_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {

@@ -218,6 +218,22 @@ Deno.serve(async (req) => {
 
     const blockedIds = new Set(blockedPairs?.map(p => p.session_b) || []);
 
+    // Fetch user's most recent match for cooldown check
+    const { data: mySession } = await supabase
+      .from('guest_sessions')
+      .select('last_matched_session_id, last_matched_at')
+      .eq('id', session_id)
+      .single();
+
+    // Apply 30-minute cooldown on recent match
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    if (mySession?.last_matched_session_id && 
+        mySession.last_matched_at && 
+        new Date(mySession.last_matched_at) > new Date(thirtyMinutesAgo)) {
+      blockedIds.add(mySession.last_matched_session_id);
+      console.log(`Excluding recent match from pool: ${mySession.last_matched_session_id}`);
+    }
+
     // Group answers by session
     const sessionAnswers = new Map<string, Map<string, string>>();
     for (const answer of otherSessions) {
@@ -350,20 +366,22 @@ Deno.serve(async (req) => {
       throw roomError;
     }
 
-    // Update cooldown with reputation-based timing
-    await supabase
-      .from('guest_sessions')
-      .update({
+    // Update cooldown with reputation-based timing and track matched partners
+    const updatePromises = [
+      supabase.from('guest_sessions').update({
         next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
-      })
-      .eq('id', session_id);
+        last_matched_session_id: bestMatch,
+        last_matched_at: new Date().toISOString(),
+      }).eq('id', session_id),
+      
+      supabase.from('guest_sessions').update({
+        next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
+        last_matched_session_id: session_id,
+        last_matched_at: new Date().toISOString(),
+      }).eq('id', bestMatch)
+    ];
 
-    await supabase
-      .from('guest_sessions')
-      .update({
-        next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
-      })
-      .eq('id', bestMatch);
+    await Promise.all(updatePromises);
 
     console.log('Match found:', { room_id: room.id, score: bestScore });
 

@@ -3,9 +3,10 @@ interface ChatMessageProps {
   text: string;
   fading?: boolean;
   remaining?: number;
+  pending?: boolean; // New: for optimistic rendering
 }
 
-export const ChatMessage = ({ sender, text, fading, remaining }: ChatMessageProps) => {
+export const ChatMessage = ({ sender, text, fading, remaining, pending }: ChatMessageProps) => {
   const showCountdown = remaining !== undefined && remaining <= 10000;
   const secondsLeft = remaining ? Math.ceil(remaining / 1000) : 0;
 
@@ -13,7 +14,7 @@ export const ChatMessage = ({ sender, text, fading, remaining }: ChatMessageProp
     <div
       className={`flex ${sender === "me" ? "justify-end" : "justify-start"} ${
         fading ? "animate-fade-dissolve" : "animate-fade-in-gentle"
-      }`}
+      } ${pending ? "opacity-60" : ""}`}
       role="article"
       aria-label={`Message from ${sender === "me" ? "you" : "conversation partner"}`}
     >

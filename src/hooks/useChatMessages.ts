@@ -11,6 +11,7 @@ export interface Message {
   timestamp: Date;
   fading?: boolean;
   remaining?: number;
+  pending?: boolean; // New: for optimistic rendering
 }
 
 interface UseChatMessagesReturn {
@@ -18,6 +19,8 @@ interface UseChatMessagesReturn {
   messageAnnouncement: string;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   messagesChannel: ReturnType<typeof supabase.channel> | null;
+  loading: boolean; // New: loading state
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; // Expose for optimistic updates
 }
 
 export const useChatMessages = (roomId: string | null): UseChatMessagesReturn => {
@@ -26,9 +29,52 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
   const [messageAnnouncement, setMessageAnnouncement] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messagesChannel, setMessagesChannel] = useState<ReturnType<typeof supabase.channel> | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Use consolidated timer hook
   useEphemeralMessages({ messages, setMessages });
+
+  // Initial fetch: Load existing messages when entering a room
+  useEffect(() => {
+    if (!roomId || !session) {
+      setLoading(false);
+      return;
+    }
+    
+    const fetchMessages = async () => {
+      console.log('[Messages] Fetching initial messages for room:', roomId);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: true })
+        .limit(50); // Performance: limit to last 50 messages
+      
+      if (error) {
+        console.error('[Messages] Failed to fetch initial messages:', error);
+        setLoading(false);
+        return;
+      }
+      
+      if (data) {
+        const fetchedMessages: Message[] = data.map(msg => ({
+          id: msg.id,
+          sender: msg.session_id === session.id ? "me" : "other",
+          text: msg.content,
+          timestamp: new Date(msg.created_at),
+          fading: false,
+        }));
+        
+        console.log(`[Messages] Loaded ${fetchedMessages.length} messages`);
+        setMessages(fetchedMessages);
+      }
+      
+      setLoading(false);
+    };
+    
+    fetchMessages();
+  }, [roomId, session]);
 
   // Subscribe to messages
   useEffect(() => {
@@ -114,5 +160,7 @@ export const useChatMessages = (roomId: string | null): UseChatMessagesReturn =>
     messageAnnouncement,
     messagesEndRef,
     messagesChannel,
+    loading,
+    setMessages,
   };
 };

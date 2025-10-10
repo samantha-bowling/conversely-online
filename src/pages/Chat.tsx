@@ -15,6 +15,7 @@ import { ChatGuidelines } from "@/components/chat/ChatGuidelines";
 import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
 import { ReflectionDialog } from "@/components/chat/ReflectionDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
+import { PostChatDialog } from "@/components/chat/PostChatDialog";
 import { useChatRoom } from "@/hooks/useChatRoom";
 import { useChatMessages } from "@/hooks/useChatMessages";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
@@ -51,6 +52,7 @@ const Chat = () => {
   const [showReflectionDialog, setShowReflectionDialog] = useState(false);
   const [showNewMatchDialog, setShowNewMatchDialog] = useState(false);
   const [showPartnerLeftDialog, setShowPartnerLeftDialog] = useState(false);
+  const [showPostChatDialog, setShowPostChatDialog] = useState(false);
 
   const { 
     roomStatus, 
@@ -64,7 +66,7 @@ const Chat = () => {
   
   // Monitor session expiry
   useSessionExpiry(session?.expires_at || null);
-  const { messages, messageAnnouncement, messagesEndRef, messagesChannel } = useChatMessages(roomId);
+  const { messages, messageAnnouncement, messagesEndRef, messagesChannel, loading, setMessages } = useChatMessages(roomId);
   const { partnerTyping, announceTyping } = useTypingPresence(
     roomId, 
     { id: session?.id || "", name: session?.username || "Anonymous" }
@@ -196,13 +198,29 @@ const Chat = () => {
       console.error('Error submitting reflection:', error);
     } finally {
       setShowReflectionDialog(false);
-      navigate("/");
+      setShowPostChatDialog(true); // Show modal instead of direct navigation
     }
   };
 
   const handleReflectionSkip = () => {
     setShowReflectionDialog(false);
+    setShowPostChatDialog(true); // Show modal instead of direct navigation
+  };
+
+  const handlePostChatNewConversation = () => {
+    setShowPostChatDialog(false);
+    navigate("/matching");
+  };
+
+  const handlePostChatReturnHome = () => {
+    setShowPostChatDialog(false);
     navigate("/");
+  };
+
+  const handlePostChatClose = () => {
+    // Soft close - allow ESC or backdrop click
+    setShowPostChatDialog(false);
+    navigate("/"); // Default to home
   };
 
   const handleReport = () => {
@@ -324,6 +342,14 @@ const Chat = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Post-Chat Dialog */}
+      <PostChatDialog
+        open={showPostChatDialog}
+        onNewConversation={handlePostChatNewConversation}
+        onReturnHome={handlePostChatReturnHome}
+        onClose={handlePostChatClose}
+      />
+
       {/* Header */}
       <ChatHeader
         roomStatus={roomStatus}
@@ -361,7 +387,15 @@ const Chat = () => {
         aria-live="polite"
         aria-atomic="false"
       >
-        {messages.length === 0 && (
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-muted-foreground text-sm animate-pulse">
+              Loading messages…
+            </p>
+          </div>
+        )}
+        
+        {!loading && messages.length === 0 && (
           <div className="text-center text-muted-foreground py-8">
             <p>Say hello to start the conversation</p>
           </div>
@@ -374,6 +408,7 @@ const Chat = () => {
             text={message.text}
             fading={message.fading}
             remaining={message.remaining}
+            pending={message.pending}
           />
         ))}
         <div ref={messagesEndRef} />

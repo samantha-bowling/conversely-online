@@ -53,14 +53,15 @@ const Landing = () => {
       setCheckingActivity(false);
     }
   };
-  return <div className={`min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in-gentle ${isTestMode ? 'pt-14' : ''}`}>
+  return <div className={`min-h-screen flex flex-col items-center justify-between p-4 pb-20 sm:pb-8 animate-fade-in-gentle ${isTestMode ? 'pt-14' : ''}`}>
       {isTestMode && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 text-center py-2 text-sm font-semibold z-50 shadow-sm">
           🧪 TEST MODE — Safe Development Environment
         </div>
       )}
       
-      <div className="max-w-md w-full space-y-8 text-center">
+      <div className="flex-1 flex items-center justify-center w-full">
+        <div className="max-w-md w-full space-y-8 text-center">
         <div className="mb-8">
           <img 
             src={converselyBanner} 
@@ -119,10 +120,11 @@ const Landing = () => {
             Takes less than 5 minutes
           </p>
         </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <footer className="absolute bottom-4 left-0 right-0">
+      <footer className="w-full pb-4">
         <Footer variant="default" />
       </footer>
 

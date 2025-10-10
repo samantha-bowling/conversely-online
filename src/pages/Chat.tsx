@@ -381,37 +381,40 @@ const Chat = () => {
 
       {/* Messages */}
       <main 
-        className="flex-1 overflow-y-auto p-4 space-y-4" 
+        className="flex-1 overflow-y-auto" 
         role="main" 
         aria-label="Chat messages"
         aria-live="polite"
         aria-atomic="false"
       >
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <p className="text-muted-foreground text-sm animate-pulse">
-              Loading messages…
-            </p>
-          </div>
-        )}
-        
-        {!loading && messages.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            <p>Say hello to start the conversation</p>
-          </div>
-        )}
-        
-        {messages.map((message) => (
-          <ChatMessage
-            key={message.id}
-            sender={message.sender}
-            text={message.text}
-            fading={message.fading}
-            remaining={message.remaining}
-            pending={message.pending}
-          />
-        ))}
-        <div ref={messagesEndRef} />
+        {/* Max-width container for better readability on wide screens */}
+        <div className="max-w-3xl mx-auto p-4 space-y-4">
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground text-sm animate-pulse">
+                Loading messages…
+              </p>
+            </div>
+          )}
+          
+          {!loading && messages.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">
+              <p>Say hello to start the conversation</p>
+            </div>
+          )}
+          
+          {messages.map((message) => (
+            <ChatMessage
+              key={message.id}
+              sender={message.sender}
+              text={message.text}
+              fading={message.fading}
+              remaining={message.remaining}
+              pending={message.pending}
+            />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </main>
 
       {/* Input */}

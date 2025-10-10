@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     }
 
     // Apply reputation-based cooldown multipliers
-    let baseCooldown = 90000; // 90 seconds default
+    let baseCooldown = session.is_test ? 10000 : 90000; // 10s for test, 90s for production
     if (session.reputation_score < -20) {
       baseCooldown = 300000; // 5 minutes for very low reputation
     } else if (session.reputation_score < -10) {
@@ -225,9 +225,10 @@ Deno.serve(async (req) => {
       .eq('id', session_id)
       .single();
 
-    // Apply 30-minute cooldown on recent match
+    // Apply 30-minute cooldown on recent match (skip for test mode)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    if (mySession?.last_matched_session_id && 
+    if (!session.is_test && // Skip cooldown for test sessions
+        mySession?.last_matched_session_id && 
         mySession.last_matched_at && 
         new Date(mySession.last_matched_at) > new Date(thirtyMinutesAgo)) {
       blockedIds.add(mySession.last_matched_session_id);

@@ -268,8 +268,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (otherSession && otherSession.user_id === session.user_id) {
-        console.log('Skipping self-match:', otherId);
+      // Only prevent self-matching in production mode (not test mode)
+      if (otherSession && otherSession.user_id === session.user_id && !session.is_test) {
+        console.log('Skipping self-match (production mode):', otherId);
         continue;
       }
 

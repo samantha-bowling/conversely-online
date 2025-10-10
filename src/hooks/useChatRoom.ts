@@ -122,7 +122,7 @@ export const useChatRoom = (roomId: string): UseChatRoomReturn => {
       console.log('[Realtime] Cleaning up room channel');
       supabase.removeChannel(channel);
     };
-  }, [roomId, navigate]);
+  }, [roomId, navigate, isUserInitiatedEnd]);
 
   return {
     roomStatus,

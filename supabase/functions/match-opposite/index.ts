@@ -307,66 +307,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Final race condition check: verify neither user already entered a room
-    const finalCheck = await supabase
-      .from('chat_rooms')
-      .select('id, session_a, session_b')
-      .or(`session_a.eq.${session_id},session_b.eq.${session_id},session_a.eq.${bestMatch},session_b.eq.${bestMatch}`)
-      .eq('status', 'active')
-      .maybeSingle();
+    // Atomic room creation using database function with advisory locks
+    const { data: matchResult, error: matchError } = await supabase
+      .rpc('atomic_create_match_room', {
+        _session_a: session_id,
+        _session_b: bestMatch
+      })
+      .single();
 
-    if (finalCheck.data) {
-      console.log('Race condition detected - user already in room:', finalCheck.data.id);
+    if (matchError) {
+      console.error('Error in atomic_create_match_room:', matchError);
+      throw matchError;
+    }
+
+    // Type guard for matchResult
+    if (!matchResult || typeof matchResult !== 'object' || !('status' in matchResult) || !('room_id' in matchResult)) {
+      throw new Error('Invalid response from atomic_create_match_room');
+    }
+
+    const result = matchResult as { room_id: string; status: 'created' | 'session_a_busy' | 'session_b_busy' };
+
+    // Handle race condition outcomes deterministically
+    if (result.status === 'session_a_busy') {
+      // Current user already matched during race - redirect to their room
+      console.log('Race condition: current user already in room:', result.room_id);
       return new Response(
         JSON.stringify({
           status: 'match_found',
-          room_id: finalCheck.data.id,
+          room_id: result.room_id,
         }),
-        {
-          headers: securityHeaders,
-          status: 200,
-        }
+        { headers: securityHeaders, status: 200 }
       );
     }
 
-    // Canonical ordering: always insert sessions in sorted order to prevent (A,B) vs (B,A) duplicates
-    const [sessionA, sessionB] = [session_id, bestMatch].sort();
-    
-    const { data: room, error: roomError } = await supabase
-      .from('chat_rooms')
-      .insert({
-        session_a: sessionA,
-        session_b: sessionB,
-      })
-      .select()
-      .single();
-
-    // Handle unique constraint violation (code 23505) - race condition caught by database
-    if (roomError) {
-      if (roomError.code === '23505') {
-        console.log('Unique constraint violation - fetching existing room');
-        const { data: existingRoom } = await supabase
-          .from('chat_rooms')
-          .select('id')
-          .or(`and(session_a.eq.${sessionA},session_b.eq.${sessionB}),and(session_a.eq.${sessionB},session_b.eq.${sessionA})`)
-          .eq('status', 'active')
-          .single();
-        
-        if (existingRoom) {
-          return new Response(
-            JSON.stringify({
-              status: 'match_found',
-              room_id: existingRoom.id,
-            }),
-            {
-              headers: securityHeaders,
-              status: 200,
-            }
-          );
-        }
-      }
-      throw roomError;
+    if (result.status === 'session_b_busy') {
+      // Best match got taken by another request - return no match
+      console.log('Race condition: best match already busy:', result.room_id);
+      return new Response(
+        JSON.stringify({ status: 'no_match' }),
+        { headers: securityHeaders, status: 200 }
+      );
     }
+
+    // Success - new room created
+    const room = { id: result.room_id };
 
     // Update cooldown with reputation-based timing and track matched partners
     const updatePromises = [

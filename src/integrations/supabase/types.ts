@@ -369,6 +369,13 @@ export type Database = {
       }
     }
     Functions: {
+      atomic_create_match_room: {
+        Args: { _session_a: string; _session_b: string }
+        Returns: {
+          room_id: string
+          status: string
+        }[]
+      }
       can_see_room_messages: {
         Args: { _room_id: string; _user_id: string }
         Returns: boolean

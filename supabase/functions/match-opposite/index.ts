@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { checkRateLimit } from '../_shared/validation.ts';
+import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,14 +17,15 @@ const securityHeaders = {
 
 const MAX_REQUEST_SIZE = 1024; // 1KB limit for request body
 
-const BLOCKED_PATTERNS = [
-  /\b(fuck|shit|ass|bitch|damn)\b/i,
-  /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/,
-  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-];
-
+/**
+ * Content validation using centralized patterns from _shared/validation.ts
+ * Checks both raw text and normalized version (handles leetspeak, unicode tricks)
+ */
 function containsBlockedContent(text: string): boolean {
-  return BLOCKED_PATTERNS.some(pattern => pattern.test(text));
+  const normalized = normalizeForDetection(text);
+  return BLOCKED_PATTERNS.some(pattern => 
+    pattern.test(text) || pattern.test(normalized)
+  );
 }
 
 Deno.serve(async (req) => {

@@ -4,11 +4,19 @@ import {
   validateMessageContent,
   verifyRoomParticipant,
   checkRateLimit,
+  logError,
+  logInfo,
 } from '../_shared/validation.ts';
 
+const FUNCTION_NAME = 'send-message';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
+const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 const securityHeaders = {
@@ -18,6 +26,8 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 const MAX_REQUEST_SIZE = 2048; // 2KB limit
@@ -54,7 +64,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
     
     if (userError || !user) {
-      console.error('JWT validation error:', userError);
+      logError(FUNCTION_NAME, 'JWT validation failed', userError);
       return new Response(
         JSON.stringify({ error: 'Invalid auth token' }),
         { headers: securityHeaders, status: 401 }
@@ -89,14 +99,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Send message request:', { session_id, room_id, contentLength: content?.length });
+    logInfo(FUNCTION_NAME, 'Send message request', { session_id, room_id, contentLength: content?.length });
 
     // Rate limiting: 30 messages per minute per session
     const rateLimitKey = `send-message:${session_id}`;
     const rateLimit = checkRateLimit(rateLimitKey, 30, 60000); // 30 per minute
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      logInfo(FUNCTION_NAME, 'Rate limit exceeded', { session_id });
       return new Response(
         JSON.stringify({
           error: 'Rate limit exceeded',
@@ -112,7 +122,7 @@ Deno.serve(async (req) => {
     // Validate session
     const sessionValidation = await validateSession(supabase, session_id);
     if (!sessionValidation.valid) {
-      console.log('Invalid session:', sessionValidation.error);
+      logInfo(FUNCTION_NAME, 'Invalid session', { error: sessionValidation.error });
       return new Response(
         JSON.stringify({ error: sessionValidation.error }),
         {
@@ -125,7 +135,7 @@ Deno.serve(async (req) => {
     // Validate message content
     const contentValidation = validateMessageContent(content);
     if (!contentValidation.valid) {
-      console.log('Invalid content:', contentValidation.error);
+      logInfo(FUNCTION_NAME, 'Invalid content', { error: contentValidation.error });
       return new Response(
         JSON.stringify({ error: contentValidation.error }),
         {
@@ -138,7 +148,7 @@ Deno.serve(async (req) => {
     // Verify room exists and user is participant
     const roomValidation = await verifyRoomParticipant(supabase, room_id, session_id);
     if (!roomValidation.valid) {
-      console.log('Room validation failed:', roomValidation.error);
+      logInfo(FUNCTION_NAME, 'Room validation failed', { error: roomValidation.error });
       return new Response(
         JSON.stringify({ error: roomValidation.error }),
         {
@@ -156,7 +166,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (roomError || !room) {
-      console.log('Room not found:', roomError);
+      logError(FUNCTION_NAME, 'Room not found', roomError);
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         {
@@ -167,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     if (room.status !== 'active') {
-      console.log('Room not active:', room.status);
+      logInfo(FUNCTION_NAME, 'Room not active', { status: room.status });
       return new Response(
         JSON.stringify({ error: 'Room is not active' }),
         {
@@ -189,7 +199,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error('Error inserting message:', insertError);
+      logError(FUNCTION_NAME, 'Error inserting message', insertError);
       return new Response(
         JSON.stringify({ error: 'Failed to send message' }),
         {
@@ -206,11 +216,11 @@ Deno.serve(async (req) => {
       .eq('id', room_id);
 
     if (updateError) {
-      console.error('Error updating room activity:', updateError);
+      logError(FUNCTION_NAME, 'Error updating room activity', updateError);
       // Don't fail the request if activity update fails
     }
 
-    console.log('Message sent successfully:', message.id);
+    logInfo(FUNCTION_NAME, 'Message sent successfully', { message_id: message.id, room_id });
 
     return new Response(
       JSON.stringify({ success: true, message }),
@@ -220,7 +230,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error sending message:', error);
+    logError(FUNCTION_NAME, 'Unexpected error sending message', error);
     return new Response(
       JSON.stringify({ error: 'Failed to send message. Please try again.' }),
       {

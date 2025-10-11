@@ -1,9 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession, verifyRoomParticipant, checkRateLimit } from '../_shared/validation.ts';
+import { validateSession, verifyRoomParticipant, checkRateLimit, logError, logInfo } from '../_shared/validation.ts';
+
+const FUNCTION_NAME = 'get-room-data';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
+const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 const securityHeaders = {
@@ -13,6 +19,8 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 const MAX_REQUEST_SIZE = 1024; // 1KB limit
@@ -49,7 +57,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
     
     if (userError || !user) {
-      console.error('JWT validation error:', userError);
+      logError(FUNCTION_NAME, 'JWT validation failed', userError);
       return new Response(
         JSON.stringify({ error: 'Invalid auth token' }),
         { headers: securityHeaders, status: 401 }
@@ -84,14 +92,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Get room data request:', { session_id, room_id });
+    logInfo(FUNCTION_NAME, 'Get room data request', { session_id, room_id });
 
     // Rate limiting: 60 requests per minute per session
     const rateLimitKey = `get-room-data:${session_id}`;
     const rateLimit = checkRateLimit(rateLimitKey, 60, 60000); // 60 per minute
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      logInfo(FUNCTION_NAME, 'Rate limit exceeded', { session_id });
       return new Response(
         JSON.stringify({
           error: 'Too many room data requests',
@@ -107,7 +115,7 @@ Deno.serve(async (req) => {
     // Validate session
     const sessionValidation = await validateSession(supabase, session_id);
     if (!sessionValidation.valid) {
-      console.log('Invalid session:', sessionValidation.error);
+      logInfo(FUNCTION_NAME, 'Invalid session', { error: sessionValidation.error });
       return new Response(
         JSON.stringify({ error: sessionValidation.error }),
         {
@@ -120,7 +128,7 @@ Deno.serve(async (req) => {
     // Verify room participant
     const roomValidation = await verifyRoomParticipant(supabase, room_id, session_id);
     if (!roomValidation.valid) {
-      console.log('Room validation failed:', roomValidation.error);
+      logInfo(FUNCTION_NAME, 'Room validation failed', { error: roomValidation.error });
       return new Response(
         JSON.stringify({ error: roomValidation.error }),
         {
@@ -138,7 +146,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !room) {
-      console.log('Room not found:', error);
+      logError(FUNCTION_NAME, 'Room not found', error);
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         {
@@ -158,7 +166,7 @@ Deno.serve(async (req) => {
       .eq('id', partner_id)
       .single();
 
-    console.log('Room data retrieved:', { room_id, status: room.status });
+    logInfo(FUNCTION_NAME, 'Room data retrieved', { room_id, status: room.status });
 
     return new Response(
       JSON.stringify({
@@ -176,7 +184,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error getting room data:', error);
+    logError(FUNCTION_NAME, 'Unexpected error getting room data', error);
     return new Response(
       JSON.stringify({ error: 'Failed to retrieve room data. Please try again.' }),
       {

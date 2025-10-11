@@ -1,9 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
+import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection, logError, logInfo } from '../_shared/validation.ts';
+
+const FUNCTION_NAME = 'match-opposite';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
+const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 const securityHeaders = {
@@ -13,6 +19,8 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 const MAX_REQUEST_SIZE = 1024; // 1KB limit for request body
@@ -60,7 +68,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
     
     if (userError || !user) {
-      console.error('JWT validation error:', userError);
+      logError(FUNCTION_NAME, 'JWT validation failed', userError);
       return new Response(
         JSON.stringify({ error: 'Invalid auth token' }),
         { headers: securityHeaders, status: 401 }
@@ -88,7 +96,7 @@ Deno.serve(async (req) => {
     const rateLimit = checkRateLimit(rateLimitKey, 20, 300000); // 20 per 5 min
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      logInfo(FUNCTION_NAME, 'Rate limit exceeded', { session_id });
       return new Response(
         JSON.stringify({
           status: 'rate_limited',
@@ -343,7 +351,7 @@ Deno.serve(async (req) => {
 
     if (result.status === 'session_b_busy') {
       // Best match got taken by another request - return no match
-      console.log('Race condition: best match already busy:', result.room_id);
+      logInfo(FUNCTION_NAME, 'Race condition: best match already busy', { room_id: result.room_id });
       return new Response(
         JSON.stringify({ status: 'no_match' }),
         { headers: securityHeaders, status: 200 }
@@ -370,7 +378,7 @@ Deno.serve(async (req) => {
 
     await Promise.all(updatePromises);
 
-    console.log('Match found:', { room_id: room.id, score: bestScore });
+    logInfo(FUNCTION_NAME, 'Match found', { room_id: room.id, score: bestScore });
 
     return new Response(
       JSON.stringify({
@@ -384,7 +392,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error in match-opposite:', error);
+    logError(FUNCTION_NAME, 'Unexpected error in matching', error);
     // Don't leak sensitive error details
     return new Response(
       JSON.stringify({ error: 'Failed to process match request. Please try again.' }),

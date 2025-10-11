@@ -177,6 +177,23 @@
 }
 
 @layer utilities {
+  /* iOS Safe Area Support */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-padding-bottom {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  
+  /* Mobile Touch Optimizations */
+  .touch-optimized {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
   /* Fade/Dissolve Animation for Ephemeral Messages */
   @keyframes fade-dissolve {
     0% {

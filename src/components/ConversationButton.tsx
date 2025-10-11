@@ -18,9 +18,9 @@ export const ConversationButton = ({
   ...rest
 }: ConversationButtonProps) => {
   const variantStyles = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90 h-14 text-base font-medium",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 h-14 text-base font-medium",
-    outline: "border-2 border-foreground bg-transparent text-foreground hover:bg-foreground hover:text-background h-14 text-base font-medium",
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90 min-h-[56px] h-14 text-base font-medium touch-optimized",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 min-h-[56px] h-14 text-base font-medium touch-optimized",
+    outline: "border-2 border-foreground bg-transparent text-foreground hover:bg-foreground hover:text-background min-h-[56px] h-14 text-base font-medium touch-optimized",
   };
 
   return (

@@ -368,6 +368,62 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
     };
   }, [roomId, session]); // Stable dependencies only
 
+  // Polling fallback: Detect room status changes even if realtime fails
+  useEffect(() => {
+    if (!session || !roomId || roomStatus === 'ended') {
+      return; // Skip if no session, no room, or already ended
+    }
+
+    const timestamp = new Date().toISOString();
+    console.log(`[Polling ${timestamp}] Starting fallback status check for room:`, roomId);
+
+    const pollingInterval = setInterval(async () => {
+      try {
+        const pollTimestamp = new Date().toISOString();
+        console.log(`[Polling ${pollTimestamp}] Checking room status...`);
+
+        const { data, error } = await supabase
+          .from('chat_rooms')
+          .select('status')
+          .eq('id', roomId)
+          .single();
+
+        if (error) {
+          console.error(`[Polling ${pollTimestamp}] Error fetching room status:`, error);
+          return;
+        }
+
+        if (data?.status === 'ended' && roomStatus !== 'ended') {
+          console.log(`[Polling ${pollTimestamp}] 🚨 FALLBACK TRIGGERED: Room ended detected via polling`);
+          
+          if (!isMountedRef.current) {
+            console.log(`[Polling ${pollTimestamp}] Component unmounted, skipping state update`);
+            return;
+          }
+
+          setRoomStatus('ended');
+
+          // Use ref to check if user initiated the end
+          if (!isUserInitiatedEndRef.current) {
+            setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
+            console.log(`[Polling ${pollTimestamp}] Partner left - dialog will show (via fallback)`);
+          } else {
+            console.log(`[Polling ${pollTimestamp}] Room ended by current user (via fallback)`);
+          }
+        }
+      } catch (err) {
+        const errorTimestamp = new Date().toISOString();
+        console.error(`[Polling ${errorTimestamp}] Polling error:`, err);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => {
+      const cleanupTimestamp = new Date().toISOString();
+      console.log(`[Polling ${cleanupTimestamp}] Stopping fallback status check`);
+      clearInterval(pollingInterval);
+    };
+  }, [session, roomId, roomStatus]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

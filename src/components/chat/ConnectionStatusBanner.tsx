@@ -1,4 +1,4 @@
-import { ConnectionStatus } from "@/hooks/useRealtimeConnection";
+import { ConnectionStatus } from "@/hooks/useChatRealtime";
 import { AlertCircle, WifiOff, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 

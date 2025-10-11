@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Lightbulb, Wifi, Shuffle, Flag, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ConnectionStatus } from "@/hooks/useRealtimeConnection";
+import type { ConnectionStatus } from "@/hooks/useChatRealtime";
 
 interface ChatHeaderProps {
   roomStatus: string;

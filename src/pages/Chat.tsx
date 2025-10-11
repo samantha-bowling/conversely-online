@@ -16,10 +16,8 @@ import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
 import { ReflectionDialog } from "@/components/chat/ReflectionDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { PostChatDialog } from "@/components/chat/PostChatDialog";
-import { useChatRoom } from "@/hooks/useChatRoom";
-import { useChatMessages } from "@/hooks/useChatMessages";
+import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
-import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import { useSessionExpiry } from "@/hooks/useSessionExpiry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -71,17 +69,21 @@ const Chat = () => {
     statusAnnouncement, 
     setStatusAnnouncement,
     setIsUserInitiatedEnd,
-    isUserInitiatedEnd 
-  } = useChatRoom(roomId);
+    isUserInitiatedEnd,
+    messages,
+    messageAnnouncement,
+    messagesEndRef,
+    loading,
+    setMessages,
+    connectionStatus,
+  } = useChatRealtime(roomId);
   
   // Monitor session expiry
   useSessionExpiry(session?.expires_at || null);
-  const { messages, messageAnnouncement, messagesEndRef, messagesChannel, loading, setMessages } = useChatMessages(roomId);
   const { partnerTyping, announceTyping } = useTypingPresence(
     roomId, 
     { id: session?.id || "", name: session?.username || "Anonymous" }
   );
-  const connectionStatus = useRealtimeConnection(messagesChannel);
 
   // Auto-hide expiry banner after first message
   useEffect(() => {

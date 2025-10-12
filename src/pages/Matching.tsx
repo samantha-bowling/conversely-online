@@ -21,6 +21,82 @@ const Matching = () => {
   const [retryEnabled, setRetryEnabled] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const targetEndTimeRef = useRef<number | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const presenceChannelRef = useRef<any>(null);
+
+  // Hybrid presence system: Realtime channel + SQL heartbeat
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const setupPresence = async () => {
+      console.log('[Presence] Setting up hybrid presence system');
+
+      // 1. Mark as searching
+      await supabase
+        .from('guest_sessions')
+        .update({ is_searching: true, last_heartbeat_at: new Date().toISOString() })
+        .eq('id', session.id);
+
+      // 2. Subscribe to Realtime presence channel (lightweight keep-alive)
+      const channel = supabase.channel(`presence:matching:${session.id}`, {
+        config: { presence: { key: session.id } }
+      });
+
+      channel.on('presence', { event: 'sync' }, () => {
+        console.log('[Presence] Channel sync');
+      });
+
+      await channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ 
+            userId: session.id, 
+            searching: true, 
+            timestamp: Date.now() 
+          });
+        }
+      });
+
+      presenceChannelRef.current = channel;
+
+      // 3. Start SQL heartbeat fallback (every 15s)
+      heartbeatIntervalRef.current = setInterval(async () => {
+        try {
+          await supabase
+            .from('guest_sessions')
+            .update({ last_heartbeat_at: new Date().toISOString() })
+            .eq('id', session.id);
+          console.log('[Heartbeat] Sent at', new Date().toISOString());
+        } catch (error) {
+          console.error('[Heartbeat] Error:', error);
+        }
+      }, 15000);
+    };
+
+    setupPresence();
+
+    // Cleanup
+    return () => {
+      console.log('[Presence] Cleaning up hybrid presence system');
+      
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+      
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.untrack();
+        supabase.removeChannel(presenceChannelRef.current);
+      }
+
+      // Mark as no longer searching
+      if (session?.id) {
+        supabase
+          .from('guest_sessions')
+          .update({ is_searching: false })
+          .eq('id', session.id)
+          .then(() => console.log('[Presence] Marked as not searching'));
+      }
+    };
+  }, [session?.id]);
 
   useEffect(() => {
     const findMatch = async () => {

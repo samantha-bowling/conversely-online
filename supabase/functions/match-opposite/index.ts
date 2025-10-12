@@ -189,15 +189,19 @@ Deno.serve(async (req) => {
     }
     console.log('Active room exclusion - busy sessions:', busySessionIds.size);
 
-    // Get all other sessions with answers, filtering for freshness and test mode
+    // Get all other sessions with answers, filtering for freshness, activity, and test mode
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString();
     const { data: otherSessions } = await supabase
       .from('survey_answers')
-      .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at, is_test)')
+      .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at, is_test, is_searching, last_heartbeat_at, times_blocked)')
       .neq('session_id', session_id)
       .eq('guest_sessions.is_test', sessionData.is_test)
+      .eq('guest_sessions.is_searching', true)
       .gt('guest_sessions.expires_at', new Date().toISOString())
-      .gt('guest_sessions.created_at', tenMinutesAgo);
+      .gt('guest_sessions.created_at', tenMinutesAgo)
+      .gt('guest_sessions.last_heartbeat_at', thirtySecondsAgo)
+      .lt('guest_sessions.times_blocked', 5);
     
     console.log(`[Matching] Found ${otherSessions?.length || 0} potential matches (is_test=${sessionData.is_test})`);
 
@@ -353,18 +357,20 @@ Deno.serve(async (req) => {
     // Success - new room created
     const room = { id: result.room_id };
 
-    // Update cooldown with reputation-based timing and track matched partners
+    // Update cooldown, track matched partners, and mark both as no longer searching
     const updatePromises = [
       supabase.from('guest_sessions').update({
         next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
         last_matched_session_id: bestMatch,
         last_matched_at: new Date().toISOString(),
+        is_searching: false,
       }).eq('id', session_id),
       
       supabase.from('guest_sessions').update({
         next_match_at: new Date(Date.now() + baseCooldown).toISOString(),
         last_matched_session_id: session_id,
         last_matched_at: new Date().toISOString(),
+        is_searching: false,
       }).eq('id', bestMatch)
     ];
 

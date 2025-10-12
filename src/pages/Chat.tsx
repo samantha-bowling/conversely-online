@@ -491,7 +491,7 @@ const Chat = () => {
           ) : (
             <>
               {partnerTyping && (
-                <div className="text-sm text-muted-foreground mb-2 animate-pulse" aria-live="polite">
+                <div className="text-sm text-muted-foreground mb-3 px-1 py-2 animate-pulse" aria-live="polite" role="status">
                   {partnerUsername} is typing...
                 </div>
               )}

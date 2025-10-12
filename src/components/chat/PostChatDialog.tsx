@@ -22,7 +22,7 @@ export const PostChatDialog = ({
 }: PostChatDialogProps) => {
   // Determine content based on variant
   const title = variant === 'partner-left' 
-    ? `${partnerUsername} has left the chat for now...`
+    ? `${partnerUsername} has left the chat.`
     : 'Thank you for chatting!';
   
   const description = 'What would you like to do next?';

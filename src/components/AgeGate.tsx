@@ -13,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/contexts/SessionContext';
 import { toast } from 'sonner';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
+import { ERROR_MESSAGES } from '@/config/constants';
 
 interface AgeGateProps {
   open: boolean;
@@ -104,6 +106,8 @@ const calculateAge = (day: string, month: string, year: string): number => {
 export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: AgeGateProps) => {
   const navigate = useNavigate();
   const mountedRef = useRef(true);
+  const captchaRef = useRef<HCaptcha>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const handleDocumentViewed = (doc: 'terms' | 'privacy') => {
     if (doc === 'terms') {
@@ -128,12 +132,20 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaExecuting, setCaptchaExecuting] = useState(false);
+  const [captchaTokenResolver, setCaptchaTokenResolver] = useState<{
+    resolve: (token: string) => void;
+    reject: (error: Error) => void;
+  } | null>(null);
 
-  // Unmount safety
+  // Unmount safety and cleanup
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
   }, []);
 
@@ -204,8 +216,56 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const legalDocsViewed = viewedTerms && viewedPrivacy;
   const legalDocsAccepted = acceptedTerms && acceptedPrivacy;
 
+  const executeCaptcha = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      setCaptchaTokenResolver({ resolve, reject });
+      setCaptchaExecuting(true);
+      
+      // Set 10-second timeout
+      timeoutRef.current = setTimeout(() => {
+        setCaptchaExecuting(false);
+        setCaptchaTokenResolver(null);
+        reject(new Error(ERROR_MESSAGES.CAPTCHA_TIMEOUT));
+      }, 10000);
+
+      // Execute captcha
+      captchaRef.current?.execute();
+    });
+  };
+
+  const handleCaptchaVerify = (token: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setCaptchaExecuting(false);
+    captchaTokenResolver?.resolve(token);
+    setCaptchaTokenResolver(null);
+  };
+
+  const handleCaptchaError = (error: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setCaptchaExecuting(false);
+    console.error('[AgeGate] Captcha error:', error);
+    captchaTokenResolver?.reject(new Error(ERROR_MESSAGES.CAPTCHA_FAILED));
+    setCaptchaTokenResolver(null);
+  };
+
+  const handleCaptchaExpire = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setCaptchaExecuting(false);
+    captchaTokenResolver?.reject(new Error(ERROR_MESSAGES.CAPTCHA_FAILED));
+    setCaptchaTokenResolver(null);
+  };
+
   const handleContinue = async () => {
-    if (submitting) return; // Prevent double-clicks
+    if (submitting || captchaExecuting) return; // Prevent double-clicks
     if (!(country && day && month && year && isEligible && legalDocsViewed && legalDocsAccepted)) return;
     
     setSubmitting(true);
@@ -217,15 +277,36 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
       await ensureAnonAuth();
       if (!mountedRef.current) return;
       
-      // Step 2: Record legal acceptance
-      console.log('[AgeGate] Step 2: Recording legal acceptance...');
+      // Step 2: Execute hCaptcha (if enabled)
+      let captchaToken: string | undefined;
+      const captchaEnabled = import.meta.env.VITE_HCAPTCHA_ENABLED === 'true';
+      
+      if (captchaEnabled) {
+        console.log('[AgeGate] Step 2: Executing hCaptcha...');
+        try {
+          captchaToken = await executeCaptcha();
+          console.log('[AgeGate] Captcha verified successfully');
+        } catch (captchaError) {
+          console.error('[AgeGate] Captcha execution failed:', captchaError);
+          const errorMessage = captchaError instanceof Error 
+            ? captchaError.message 
+            : ERROR_MESSAGES.CAPTCHA_FAILED;
+          toast.error(errorMessage);
+          return;
+        }
+      }
+      
+      if (!mountedRef.current) return;
+      
+      // Step 3: Record legal acceptance
+      console.log('[AgeGate] Step 3: Recording legal acceptance...');
       recordAcceptance(country);
       markAgeGateSeen();
       
-      // Step 3: Preload Survey route in parallel with session creation
-      console.log('[AgeGate] Step 3: Creating session and preloading Survey...');
+      // Step 4: Preload Survey route in parallel with session creation
+      console.log('[AgeGate] Step 4: Creating session and preloading Survey...');
       const [sessionData] = await Promise.all([
-        initializeSession(),
+        initializeSession(captchaToken),
         import('@/pages/Survey').catch(err => {
           console.warn('[AgeGate] Survey preload failed (non-critical):', err);
         })
@@ -236,7 +317,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
       const duration = (performance.now() - start).toFixed(0);
       console.log(`[AgeGate] Session flow completed (${duration}ms)`);
       
-      // Step 4: Navigate imperatively
+      // Step 5: Navigate imperatively
       onAccept(); // Close the dialog
       navigate('/survey', { replace: true });
       
@@ -254,6 +335,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
     } finally {
       if (mountedRef.current) {
         setSubmitting(false);
+        setCaptchaExecuting(false);
       }
     }
   };
@@ -276,6 +358,27 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
             Before you begin, we need to confirm a few things to comply with privacy laws.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Invisible hCaptcha */}
+        {import.meta.env.VITE_HCAPTCHA_ENABLED === 'true' && (
+          <div style={{ display: 'none' }} aria-hidden="true">
+            <HCaptcha
+              ref={captchaRef}
+              sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+              onVerify={handleCaptchaVerify}
+              onError={handleCaptchaError}
+              onExpire={handleCaptchaExpire}
+              size="invisible"
+            />
+          </div>
+        )}
+        
+        {/* Noscript fallback */}
+        <noscript>
+          <div className="p-4 bg-destructive/10 text-destructive rounded-lg">
+            <p className="text-sm">Please enable JavaScript to continue. Human verification requires it.</p>
+          </div>
+        </noscript>
 
         <div className="space-y-6 py-4">
           {/* Country Selection */}
@@ -525,17 +628,17 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           {/* Continue Button */}
           <Button
             onClick={handleContinue}
-            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted || submitting}
+            disabled={!country || !day || !month || !year || !isEligible || !legalDocsViewed || !legalDocsAccepted || submitting || captchaExecuting}
             className="w-full"
             style={{
-              pointerEvents: submitting ? 'none' : 'auto'
+              pointerEvents: (submitting || captchaExecuting) ? 'none' : 'auto'
             }}
-            aria-busy={submitting}
+            aria-busy={submitting || captchaExecuting}
           >
-            {submitting ? (
+            {submitting || captchaExecuting ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Preparing your session...
+                {captchaExecuting ? 'Verifying...' : 'Preparing your session...'}
               </span>
             ) : (
               "Let's Get Started"

@@ -37,6 +37,47 @@ function generateAvatar(): string {
   return avatars[Math.floor(Math.random() * avatars.length)];
 }
 
+async function verifyHCaptcha(token: string, clientIp: string): Promise<boolean> {
+  const secretKey = Deno.env.get('HCAPTCHA_SECRET_KEY');
+  
+  if (!secretKey) {
+    console.error('[hCaptcha] Secret key not configured');
+    throw new Error('Captcha verification not configured');
+  }
+
+  const startTime = performance.now();
+  
+  try {
+    const response = await fetch('https://hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        secret: secretKey,
+        response: token,
+        remoteip: clientIp,
+      }),
+    });
+
+    const data = await response.json();
+    const latencyMs = Math.round(performance.now() - startTime);
+    
+    console.log('[hCaptcha] Verification result:', {
+      event: 'captcha_verification',
+      success: data.success,
+      ip: clientIp,
+      latency_ms: latencyMs,
+      error_codes: data['error-codes'],
+    });
+
+    return data.success === true;
+  } catch (error) {
+    console.error('[hCaptcha] Verification request failed:', error);
+    throw new Error('Captcha verification failed');
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -118,11 +159,58 @@ Deno.serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    // Parse request body for is_test flag
-    const req_body = await req.json().catch(() => ({}));
+    // Parse and validate request body
+    const req_body = await req.json().catch(() => null);
+    
+    if (!req_body || typeof req_body !== 'object') {
+      console.error('[Session] Invalid payload structure');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          code: 'invalid_payload',
+          error: 'Invalid request payload' 
+        }),
+        { headers: securityHeaders, status: 400 }
+      );
+    }
+
     const isTest = req_body.is_test || false;
+    const captchaToken = req_body.captcha_token;
     
     console.log('[Session] Creating guest session, is_test:', isTest);
+
+    // hCaptcha verification (skip in test mode)
+    if (!isTest) {
+      if (!captchaToken || typeof captchaToken !== 'string') {
+        console.warn('[Session] Missing captcha token');
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            code: 'captcha_required',
+            error: 'Captcha verification required' 
+          }),
+          { headers: securityHeaders, status: 403 }
+        );
+      }
+
+      const captchaValid = await verifyHCaptcha(captchaToken, clientIp);
+      
+      if (!captchaValid) {
+        console.warn('[Session] Captcha verification failed for IP:', clientIp);
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            code: 'captcha_verification_failed',
+            error: 'Captcha verification failed' 
+          }),
+          { headers: securityHeaders, status: 403 }
+        );
+      }
+      
+      console.log('[Session] Captcha verified successfully');
+    } else {
+      console.log('[Session] Skipping captcha verification (test mode)');
+    }
 
     const username = generateUsername();
     const avatar = generateAvatar();

@@ -16,7 +16,7 @@ interface SessionContextType {
   session: Session | null;
   loading: boolean;
   ensureAnonAuth: () => Promise<void>;
-  initializeSession: () => Promise<Session>;
+  initializeSession: (captchaToken?: string) => Promise<Session>;
   refreshSession: () => Promise<void>;
 }
 
@@ -54,9 +54,20 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
+   * Helper to build session body with optional captcha token
+   */
+  const buildSessionBody = (captchaToken?: string) => {
+    const isTestMode = localStorage.getItem('test_mode') === 'true';
+    return {
+      is_test: isTestMode,
+      ...(captchaToken ? { captcha_token: captchaToken } : {}),
+    };
+  };
+
+  /**
    * Create a new guest session with generation guard and in-flight de-duplication
    */
-  const createNewSession = useCallback(async (): Promise<Session> => {
+  const createNewSession = useCallback(async (captchaToken?: string): Promise<Session> => {
     // De-duplication: return existing promise if session creation is in-flight
     if (inFlightSession) {
       console.log('[Session] Session creation already in progress, returning existing promise');
@@ -70,17 +81,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       const start = performance.now();
 
       try {
-        // Check for test mode flag
-        const isTestMode = localStorage.getItem('test_mode') === 'true';
-        console.log('[Session] Creating session with test mode:', isTestMode);
+        console.log('[Session] Creating session with captcha token:', !!captchaToken);
         
         // Call edge function - JWT is automatically included in Authorization header
         const { data, error } = await supabase.functions.invoke<CreateSessionResponse>(
           'create-guest-session',
           {
-            body: { 
-              is_test: isTestMode 
-            },
+            body: buildSessionBody(captchaToken),
             headers: {
               'x-consent-given': 'true'
             }
@@ -150,7 +157,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
    * Initialize a new session (public API for components)
    * Returns the session object and updates context state
    */
-  const initializeSession = useCallback(async (): Promise<Session> => {
+  const initializeSession = useCallback(async (captchaToken?: string): Promise<Session> => {
     if (loadingRef.current) {
       console.log('[Session] Session initialization already in progress');
       if (inFlightSession) return inFlightSession;
@@ -161,7 +168,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      const sessionData = await createNewSession();
+      const sessionData = await createNewSession(captchaToken);
       return sessionData;
     } catch (error) {
       console.error('[Session] Failed to initialize session:', error);

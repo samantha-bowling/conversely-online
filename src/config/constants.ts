@@ -29,6 +29,9 @@ export const ERROR_MESSAGES = {
   SURVEY_SAVE_ERROR: "Error saving survey answers",
   SESSION_CREATE_ERROR: "Error creating session",
   SESSION_RATE_LIMITED: "Too many session requests",
+  CAPTCHA_REQUIRED: "Verification required - please try again",
+  CAPTCHA_FAILED: "Verification failed - please try again",
+  CAPTCHA_TIMEOUT: "Verification timed out - please try again",
 } as const;
 
 // Success messages

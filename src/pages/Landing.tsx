@@ -9,12 +9,10 @@ import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import type { ActivityLevel } from "@/types";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const Landing = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
   const [showAgeGate, setShowAgeGate] = useState(false);
   const [needsLegalUpdate, setNeedsLegalUpdate] = useState(false);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
@@ -55,7 +53,7 @@ const Landing = () => {
       setCheckingActivity(false);
     }
   };
-  return <div className={`min-h-screen flex flex-col items-center p-4 animate-fade-in-gentle ${isTestMode ? 'pt-14' : ''} ${isMobile ? 'pb-[calc(6rem+env(safe-area-inset-bottom))]' : 'pb-8'}`}>
+  return <div className={`min-h-screen flex flex-col items-center justify-between p-4 pb-20 sm:pb-8 animate-fade-in-gentle ${isTestMode ? 'pt-14' : ''}`}>
       {isTestMode && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 text-center py-2 text-sm font-semibold z-50 shadow-sm">
           🧪 TEST MODE — Safe Development Environment
@@ -126,7 +124,7 @@ const Landing = () => {
       </div>
 
       {/* Footer */}
-      <footer className={`w-full mt-auto ${isMobile ? 'mb-[calc(1rem+env(safe-area-inset-bottom))]' : 'mb-4'}`}>
+      <footer className="w-full pb-4">
         <Footer variant="default" />
       </footer>
 

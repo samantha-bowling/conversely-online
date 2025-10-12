@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
 import { ActivityIndicator } from "@/components/ActivityIndicator";
@@ -18,6 +18,9 @@ const Matching = () => {
   const [statusAnnouncement, setStatusAnnouncement] = useState<string>(STATUS_MESSAGES.SEARCHING);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
   const [checkingActivity, setCheckingActivity] = useState(false);
+  const [retryEnabled, setRetryEnabled] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const targetEndTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const findMatch = async () => {
@@ -65,6 +68,41 @@ const Matching = () => {
     return () => clearTimeout(timeout);
   }, [navigate, session]);
 
+  // Countdown timer effect - timestamp-based for resilience to tab throttling
+  useEffect(() => {
+    if (status !== 'cooldown' && status !== 'rate-limited') {
+      targetEndTimeRef.current = null;
+      setRetryEnabled(false);
+      return;
+    }
+
+    if (waitSeconds <= 0) {
+      setRetryEnabled(true);
+      return;
+    }
+
+    // Calculate absolute target time (resilient to tab throttling)
+    targetEndTimeRef.current = Date.now() + (waitSeconds * 1000);
+
+    const interval = setInterval(() => {
+      if (!targetEndTimeRef.current) {
+        clearInterval(interval);
+        return;
+      }
+
+      const remaining = Math.max(0, Math.floor((targetEndTimeRef.current - Date.now()) / 1000));
+      setWaitSeconds(remaining);
+
+      if (remaining === 0) {
+        clearInterval(interval);
+        setRetryEnabled(true);
+        setStatusAnnouncement('You can now try matching again');
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [status]);
+
   const checkActivity = async () => {
     setCheckingActivity(true);
     try {
@@ -78,6 +116,27 @@ const Matching = () => {
     } finally {
       setCheckingActivity(false);
     }
+  };
+
+  const handleRetryMatch = async () => {
+    if (isRetrying) return;
+    
+    setIsRetrying(true);
+    setRetryEnabled(false);
+    
+    setTimeout(() => {
+      setIsRetrying(false);
+      navigate('/survey');
+    }, 1000);
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (seconds >= 60) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
   };
 
   return (
@@ -129,11 +188,33 @@ const Matching = () => {
             <div className="space-y-2">
               <h2 className="text-2xl font-bold">Please wait</h2>
               <p className="text-muted-foreground">
-                You can try matching again in {waitSeconds} seconds.
+                {retryEnabled ? (
+                  <span className="text-primary font-semibold animate-pulse">
+                    Ready to match again!
+                  </span>
+                ) : (
+                  <>You can try matching again in <span className="font-semibold">{formatTime(waitSeconds)}</span></>
+                )}
               </p>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 space-y-3">
+              {retryEnabled && (
+                <ConversationButton
+                  variant="primary"
+                  onClick={handleRetryMatch}
+                  disabled={isRetrying}
+                >
+                  {isRetrying ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Starting...
+                    </span>
+                  ) : (
+                    'Try Matching Again'
+                  )}
+                </ConversationButton>
+              )}
               <ConversationButton
                 variant="outline"
                 onClick={() => navigate("/")}
@@ -149,11 +230,33 @@ const Matching = () => {
             <div className="space-y-2">
               <h2 className="text-2xl font-bold">Slow down there!</h2>
               <p className="text-muted-foreground">
-                You've tried matching too many times. Please wait {waitSeconds} seconds before trying again.
+                {retryEnabled ? (
+                  <span className="text-primary font-semibold animate-pulse">
+                    Ready to match again!
+                  </span>
+                ) : (
+                  <>You've tried matching too many times. Please wait <span className="font-semibold">{formatTime(waitSeconds)}</span> before trying again.</>
+                )}
               </p>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 space-y-3">
+              {retryEnabled && (
+                <ConversationButton
+                  variant="primary"
+                  onClick={handleRetryMatch}
+                  disabled={isRetrying}
+                >
+                  {isRetrying ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Starting...
+                    </span>
+                  ) : (
+                    'Try Matching Again'
+                  )}
+                </ConversationButton>
+              )}
               <ConversationButton
                 variant="outline"
                 onClick={() => navigate("/")}

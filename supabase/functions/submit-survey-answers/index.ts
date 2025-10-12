@@ -1,27 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateMessageContent, sanitizeText, logError, logInfo } from '../_shared/validation.ts';
+import { validateMessageContent, sanitizeText } from '../_shared/validation.ts';
 import { ALL_QUESTION_IDS, isValidQuestionId } from '../_shared/survey-questions.ts';
 
-const FUNCTION_NAME = 'submit-survey-answers';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
-const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
-
 const corsHeaders = {
-  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-};
-
-const securityHeaders = {
-  ...corsHeaders,
-  'Content-Type': 'application/json',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 Deno.serve(async (req) => {
@@ -34,10 +17,10 @@ Deno.serve(async (req) => {
     // 1. Validate JWT and get user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      logError(FUNCTION_NAME, 'Missing authorization header', new Error('No auth header'));
+      console.error('Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: securityHeaders }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -49,10 +32,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      logError(FUNCTION_NAME, 'Auth error', authError);
+      console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: securityHeaders }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -62,11 +45,11 @@ Deno.serve(async (req) => {
     if (!session_id || !answers || !Array.isArray(answers)) {
       return new Response(
         JSON.stringify({ error: 'Invalid request body' }),
-        { status: 400, headers: securityHeaders }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    logInfo(FUNCTION_NAME, 'Processing survey submission', { session_id, user_id: user.id, answerCount: answers.length });
+    console.log(`Processing survey submission for session ${session_id}, user ${user.id}`);
 
     // 3. Verify session ownership
     const { data: session, error: sessionError } = await supabase
@@ -77,10 +60,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      logError(FUNCTION_NAME, 'Session verification failed', sessionError);
+      console.error('Session verification failed:', sessionError);
       return new Response(
         JSON.stringify({ error: 'Invalid session or unauthorized access' }),
-        { status: 403, headers: securityHeaders }
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -92,18 +75,18 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (checkError) {
-      logError(FUNCTION_NAME, 'Error checking existing answers', checkError);
+      console.error('Error checking existing answers:', checkError);
       return new Response(
         JSON.stringify({ error: 'Database error' }),
-        { status: 500, headers: securityHeaders }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (existingAnswers && existingAnswers.length > 0) {
-      logInfo(FUNCTION_NAME, 'Duplicate submission attempt', { session_id });
+      console.warn(`Duplicate submission attempt for session ${session_id}`);
       return new Response(
         JSON.stringify({ error: 'Survey already submitted for this session' }),
-        { status: 409, headers: securityHeaders }
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -114,10 +97,10 @@ Deno.serve(async (req) => {
 
       // Validate question_id using type-safe helper
       if (!isValidQuestionId(question_id)) {
-        logError(FUNCTION_NAME, 'Invalid question_id', new Error(`Invalid: ${question_id}`));
+        console.error(`Invalid question_id: ${question_id}`);
         return new Response(
           JSON.stringify({ error: `Invalid question_id: ${question_id}` }),
-          { status: 400, headers: securityHeaders }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -126,20 +109,20 @@ Deno.serve(async (req) => {
       
       // Check length (answers should be short, predefined options)
       if (sanitized.length > 100) {
-        logError(FUNCTION_NAME, 'Answer too long', new Error(`Question: ${question_id}`));
+        console.error(`Answer too long for question ${question_id}`);
         return new Response(
           JSON.stringify({ error: 'Answer text too long' }),
-          { status: 400, headers: securityHeaders }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       // Validate content using shared validation
       const validation = validateMessageContent(sanitized);
       if (!validation.valid) {
-        logInfo(FUNCTION_NAME, 'Blocked content in answer', { error: validation.error });
+        console.error(`Blocked content in answer: ${validation.error}`);
         return new Response(
           JSON.stringify({ error: `Invalid answer content: ${validation.error}` }),
-          { status: 400, headers: securityHeaders }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -154,7 +137,7 @@ Deno.serve(async (req) => {
     if (validatedAnswers.length < 5) {
       return new Response(
         JSON.stringify({ error: 'At least 5 answers required' }),
-        { status: 400, headers: securityHeaders }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -164,25 +147,25 @@ Deno.serve(async (req) => {
       .insert(validatedAnswers);
 
     if (insertError) {
-      logError(FUNCTION_NAME, 'Error inserting survey answers', insertError);
+      console.error('Error inserting survey answers:', insertError);
       return new Response(
         JSON.stringify({ error: 'Failed to save survey answers' }),
-        { status: 500, headers: securityHeaders }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    logInfo(FUNCTION_NAME, 'Successfully submitted answers', { session_id, count: validatedAnswers.length });
+    console.log(`Successfully submitted ${validatedAnswers.length} answers for session ${session_id}`);
 
     return new Response(
       JSON.stringify({ success: true, count: validatedAnswers.length }),
-      { headers: securityHeaders }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    logError(FUNCTION_NAME, 'Unexpected error', error);
+    console.error('Error in submit-survey-answers:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: securityHeaders }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

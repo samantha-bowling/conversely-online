@@ -1,26 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { logError, logInfo } from '../_shared/validation.ts';
-
-const FUNCTION_NAME = 'get-activity-level';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
-const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-};
-
-const securityHeaders = {
-  ...corsHeaders,
-  'Content-Type': 'application/json',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 // Cache management
@@ -38,10 +20,10 @@ Deno.serve(async (req) => {
     // Check cache first
     const now = Date.now();
     if (cachedResult && (now - cacheTimestamp) < CACHE_DURATION_MS) {
-      logInfo(FUNCTION_NAME, 'Returning cached activity level', {});
+      console.log('Returning cached activity level');
       return new Response(
         JSON.stringify(cachedResult),
-        { headers: securityHeaders }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -50,7 +32,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    logInfo(FUNCTION_NAME, 'Querying available users for activity level', {});
+    console.log('Querying available users for activity level');
 
     // Query for available users
     // Users are considered available if they:
@@ -66,7 +48,7 @@ Deno.serve(async (req) => {
       .lte('next_match_at', new Date().toISOString());
 
     if (sessionsError) {
-      logError(FUNCTION_NAME, 'Error querying sessions', sessionsError);
+      console.error('Error querying sessions:', sessionsError);
       throw sessionsError;
     }
 
@@ -82,7 +64,7 @@ Deno.serve(async (req) => {
         .in('session_id', sessionIds);
 
       if (answersError) {
-        logError(FUNCTION_NAME, 'Error querying survey answers', answersError);
+        console.error('Error querying survey answers:', answersError);
         throw answersError;
       }
 
@@ -95,7 +77,7 @@ Deno.serve(async (req) => {
       availableCount = Array.from(answerCounts.values()).filter(count => count >= 5).length;
     }
 
-    logInfo(FUNCTION_NAME, 'Found available users', { availableCount });
+    console.log(`Found ${availableCount} available users`);
 
     // Apply enhanced fuzzing: ±3-5 random variance for better privacy
     const fuzzAmount = Math.floor(Math.random() * 7) - 3; // -3 to +3
@@ -104,7 +86,7 @@ Deno.serve(async (req) => {
     // Bucket to nearest 5 to reduce precision
     const fuzzedCount = Math.round(fuzzedWithVariance / 5) * 5;
 
-    logInfo(FUNCTION_NAME, 'Fuzzed count calculated', { fuzzedCount, original: availableCount });
+    console.log(`Fuzzed count: ${fuzzedCount} (original: ${availableCount})`);
 
     // Determine activity level based on fuzzed count
     let level: string;
@@ -131,18 +113,18 @@ Deno.serve(async (req) => {
     cachedResult = result;
     cacheTimestamp = now;
 
-    logInfo(FUNCTION_NAME, 'Activity level result', result);
+    console.log('Activity level result:', result);
 
     return new Response(
       JSON.stringify(result),
-      { headers: securityHeaders }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    logError(FUNCTION_NAME, 'Unexpected error in get-activity-level', error);
+    console.error('Error in get-activity-level:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to get activity level' }),
-      { status: 500, headers: securityHeaders }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

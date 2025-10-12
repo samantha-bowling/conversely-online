@@ -1,15 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession, verifyRoomParticipant, checkRateLimit, logError, logInfo } from '../_shared/validation.ts';
-
-const FUNCTION_NAME = 'block-user';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
-const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
+import { validateSession, verifyRoomParticipant, checkRateLimit } from '../_shared/validation.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
 };
 
 const securityHeaders = {
@@ -19,8 +13,6 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 const MAX_REQUEST_SIZE = 1024; // 1KB limit
@@ -57,7 +49,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
     
     if (userError || !user) {
-      logError(FUNCTION_NAME, 'JWT validation failed', userError);
+      console.error('JWT validation error:', userError);
       return new Response(
         JSON.stringify({ error: 'Invalid auth token' }),
         { headers: securityHeaders, status: 401 }
@@ -92,14 +84,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    logInfo(FUNCTION_NAME, 'Block user request', { session_id, room_id });
+    console.log('Block user request:', { session_id, room_id });
 
     // Rate limiting: 3 blocks per hour per session
     const rateLimitKey = `block-user:${session_id}`;
     const rateLimit = checkRateLimit(rateLimitKey, 3, 3600000); // 3 per hour
 
     if (!rateLimit.allowed) {
-      logInfo(FUNCTION_NAME, 'Rate limit exceeded', { session_id });
+      console.log('Rate limit exceeded for session:', session_id);
       return new Response(
         JSON.stringify({
           error: 'Rate limit exceeded',
@@ -115,7 +107,7 @@ Deno.serve(async (req) => {
     // Validate session
     const sessionValidation = await validateSession(supabase, session_id);
     if (!sessionValidation.valid) {
-      logInfo(FUNCTION_NAME, 'Invalid session', { error: sessionValidation.error });
+      console.log('Invalid session:', sessionValidation.error);
       return new Response(
         JSON.stringify({ error: sessionValidation.error }),
         {
@@ -128,7 +120,7 @@ Deno.serve(async (req) => {
     // Verify room participant
     const roomValidation = await verifyRoomParticipant(supabase, room_id, session_id);
     if (!roomValidation.valid) {
-      logInfo(FUNCTION_NAME, 'Room validation failed', { error: roomValidation.error });
+      console.log('Room validation failed:', roomValidation.error);
       return new Response(
         JSON.stringify({ error: roomValidation.error }),
         {
@@ -146,7 +138,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (roomError || !room) {
-      logError(FUNCTION_NAME, 'Room not found', roomError);
+      console.log('Room not found:', roomError);
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         {
@@ -167,7 +159,7 @@ Deno.serve(async (req) => {
       });
 
     if (blockError) {
-      logError(FUNCTION_NAME, 'Error inserting blocked pair', blockError);
+      console.error('Error inserting blocked pair:', blockError);
       return new Response(
         JSON.stringify({ error: 'Failed to block user' }),
         {
@@ -194,7 +186,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', partner_id);
 
-      logInfo(FUNCTION_NAME, 'Updated reputation for blocked user', { partner_id });
+      console.log('Updated reputation for blocked user:', partner_id);
     }
 
     // End the chat if not already ended
@@ -208,12 +200,12 @@ Deno.serve(async (req) => {
         .eq('id', room_id);
 
       if (endError) {
-        logError(FUNCTION_NAME, 'Error ending chat', endError);
+        console.error('Error ending chat:', endError);
         // Don't fail the request if ending fails, block was successful
       }
     }
 
-    logInfo(FUNCTION_NAME, 'User blocked successfully', { blocker: session_id, blocked: partner_id });
+    console.log('User blocked successfully:', { blocker: session_id, blocked: partner_id });
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -223,7 +215,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    logError(FUNCTION_NAME, 'Unexpected error blocking user', error);
+    console.error('Error blocking user:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to block user. Please try again.' }),
       {

@@ -1,15 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { logError, logInfo } from '../_shared/validation.ts';
-
-const FUNCTION_NAME = 'submit-reflection';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://conversely.app';
-const IS_DEV = Deno.env.get('ENVIRONMENT') === 'development';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': IS_DEV ? '*' : SITE_URL,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400',
 };
 
 const securityHeaders = {
@@ -18,9 +11,6 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Content-Security-Policy': "default-src 'none'; script-src 'none'; connect-src 'self'; img-src 'none'; style-src 'none'",
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
 };
 
 const MAX_REQUEST_SIZE = 10 * 1024; // 10KB
@@ -46,7 +36,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
-      logError(FUNCTION_NAME, 'Missing Supabase configuration', new Error('Missing env vars'));
+      console.error('Missing Supabase configuration');
       return new Response(
         JSON.stringify({ error: 'Internal server error' }),
         { status: 500, headers: securityHeaders }
@@ -68,7 +58,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
 
     if (authError || !user) {
-      logError(FUNCTION_NAME, 'Authentication failed', authError);
+      console.error('Authentication failed:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: securityHeaders }
@@ -113,7 +103,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      logError(FUNCTION_NAME, 'Session lookup failed', sessionError);
+      console.error('Session lookup failed:', sessionError);
       return new Response(
         JSON.stringify({ error: 'Session not found' }),
         { status: 404, headers: securityHeaders }
@@ -128,7 +118,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (roomError || !room) {
-      logError(FUNCTION_NAME, 'Room lookup failed', roomError);
+      console.error('Room lookup failed:', roomError);
       return new Response(
         JSON.stringify({ error: 'Room not found' }),
         { status: 404, headers: securityHeaders }
@@ -168,14 +158,14 @@ Deno.serve(async (req) => {
       });
 
     if (insertError) {
-      logError(FUNCTION_NAME, 'Failed to insert reflection', insertError);
+      console.error('Failed to insert reflection:', insertError);
       return new Response(
         JSON.stringify({ error: 'Failed to save reflection' }),
         { status: 500, headers: securityHeaders }
       );
     }
 
-    logInfo(FUNCTION_NAME, 'Reflection saved successfully', { room_id, session_id: session.id, rating });
+    console.log('Reflection saved successfully:', { room_id, session_id: session.id, rating });
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -183,7 +173,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    logError(FUNCTION_NAME, 'Unexpected error', error);
+    console.error('Unexpected error in submit-reflection:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: securityHeaders }

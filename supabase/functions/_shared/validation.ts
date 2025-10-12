@@ -3,21 +3,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 // Rate limiting store (in-memory with TTL)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
-// Deterministic cleanup - runs every 60 seconds
-setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [k, v] of rateLimitStore.entries()) {
-    if (v.resetAt < now) {
-      rateLimitStore.delete(k);
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) {
-    console.log(`[RateLimit] Cleaned ${cleaned} expired entries, ${rateLimitStore.size} remaining`);
-  }
-}, 60000); // Run every 60 seconds
-
 // Leetspeak normalization map
 const LEET_MAP: Record<string, string> = {
   '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
@@ -288,31 +273,7 @@ export function validateMessageContent(content: string): ValidationResult {
 }
 
 /**
- * Structured logging utilities
- */
-export function logError(functionName: string, message: string, error: unknown, context?: Record<string, any>): void {
-  console.error(JSON.stringify({
-    level: 'ERROR',
-    function: functionName,
-    message,
-    error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
-    context,
-    timestamp: new Date().toISOString()
-  }));
-}
-
-export function logInfo(functionName: string, message: string, context?: Record<string, any>): void {
-  console.log(JSON.stringify({
-    level: 'INFO',
-    function: functionName,
-    message,
-    context,
-    timestamp: new Date().toISOString()
-  }));
-}
-
-/**
- * Check rate limit (with deterministic cleanup via setInterval above)
+ * Check rate limit
  */
 export function checkRateLimit(
   key: string,
@@ -321,6 +282,15 @@ export function checkRateLimit(
 ): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
   const record = rateLimitStore.get(key);
+
+  // Clean up expired entries periodically
+  if (Math.random() < 0.01) {
+    for (const [k, v] of rateLimitStore.entries()) {
+      if (v.resetAt < now) {
+        rateLimitStore.delete(k);
+      }
+    }
+  }
 
   if (!record || record.resetAt < now) {
     // New window

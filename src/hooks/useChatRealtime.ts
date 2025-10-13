@@ -89,7 +89,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
   // Initial data fetching
   useEffect(() => {
-    if (!session || !roomId) {
+    if (!session?.id || !roomId) {
       setLoading(false);
       return;
     }
@@ -162,11 +162,12 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
     };
 
     fetchInitialData();
-  }, [roomId, session, navigate]);
+  }, [roomId, session?.id, navigate]); // ✅ Only depend on session.id primitive
 
   // Consolidated realtime subscription
   useEffect(() => {
-    if (!roomId || !session || isSubscribedRef.current) {
+    console.log('[Realtime] Session ID for realtime effect:', session?.id);
+    if (!roomId || !session?.id || isSubscribedRef.current) {
       return;
     }
 

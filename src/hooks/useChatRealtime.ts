@@ -368,61 +368,97 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
     };
   }, [roomId, session]); // Stable dependencies only
 
-  // Polling fallback: Detect room status changes even if realtime fails
+  // ============================================================================
+  // ✅ Polling fallback with heartbeat-based disconnect detection
+  // Checks every 5s for room status changes AND partner heartbeat liveness
+  // ============================================================================
   useEffect(() => {
-    if (!session || !roomId || roomStatus === 'ended') {
-      return; // Skip if no session, no room, or already ended
-    }
+    if (!roomId || !session?.id) return;
 
-    const timestamp = new Date().toISOString();
-    console.log(`[Polling ${timestamp}] Starting fallback status check for room:`, roomId);
+    const isPollingRef = useRef(false);
+    let pollCount = 0;
+    let lastSuccessfulPoll = Date.now();
 
-    const pollingInterval = setInterval(async () => {
+    const pollInterval = setInterval(async () => {
+      // ✅ Prevent stacking RPC calls (network latency >5s)
+      if (isPollingRef.current) {
+        console.log('[Polling] Skipping - previous poll still active');
+        return;
+      }
+
+      isPollingRef.current = true;
+      pollCount++;
+
       try {
-        const pollTimestamp = new Date().toISOString();
-        console.log(`[Polling ${pollTimestamp}] Checking room status...`);
-
-        const { data, error } = await supabase
+        // Check room status
+        const { data: roomData, error: roomError } = await supabase
           .from('chat_rooms')
           .select('status')
           .eq('id', roomId)
           .single();
 
-        if (error) {
-          console.error(`[Polling ${pollTimestamp}] Error fetching room status:`, error);
+        if (roomError) {
+          console.error('[Polling] Room fetch error:', roomError);
+          if (pollCount > 3 && Date.now() - lastSuccessfulPoll > 20000) {
+            console.log('[Polling] Multiple failures - marking offline');
+            setConnectionStatus('offline');
+          }
           return;
         }
 
-        if (data?.status === 'ended' && roomStatus !== 'ended') {
-          console.log(`[Polling ${pollTimestamp}] 🚨 FALLBACK TRIGGERED: Room ended detected via polling`);
+        // ✅ Check partner heartbeat
+        const { data: heartbeatData, error: heartbeatError } = await supabase
+          .rpc('check_partner_heartbeat', {
+            _room_id: roomId,
+            _my_session_id: session.id
+          });
+
+        if (heartbeatError) {
+          console.error('[Polling] Heartbeat check error:', heartbeatError);
+        }
+
+        // ✅ Warn if empty RPC result (shouldn't happen, but defensive)
+        if (!heartbeatData?.length) {
+          console.warn('[Polling] No heartbeat data returned - defaulting to alive');
+        }
+
+        const partnerAlive = heartbeatData?.[0]?.partner_alive ?? true;
+        const lastHeartbeat = heartbeatData?.[0]?.last_heartbeat;
+        
+        console.log('[Polling]', {
+          roomStatus: roomData?.status,
+          partnerAlive,
+          lastHeartbeat,
+          age: lastHeartbeat ? Math.floor((Date.now() - new Date(lastHeartbeat).getTime()) / 1000) : 'N/A'
+        });
+
+        // ✅ Reset connection status on successful poll
+        if (connectionStatus !== 'connected') {
+          setConnectionStatus('connected');
+        }
+        lastSuccessfulPoll = Date.now();
+        pollCount = 0;
+
+        // Update UI if room ended OR partner heartbeat stale
+        if (
+          (roomData?.status === 'ended' || (!partnerAlive && roomData?.status === 'active')) &&
+          roomStatus !== 'ended'
+        ) {
+          const disconnectReason = partnerAlive ? 'room_ended' : 'heartbeat_stale';
+          console.log(`[Polling] DISCONNECT DETECTED via ${disconnectReason}`);
           
-          if (!isMountedRef.current) {
-            console.log(`[Polling ${pollTimestamp}] Component unmounted, skipping state update`);
-            return;
-          }
-
           setRoomStatus('ended');
-
-          // Use ref to check if user initiated the end
-          if (!isUserInitiatedEndRef.current) {
-            setStatusAnnouncement(STATUS_MESSAGES.DISCONNECTED);
-            console.log(`[Polling ${pollTimestamp}] Partner left - dialog will show (via fallback)`);
-          } else {
-            console.log(`[Polling ${pollTimestamp}] Room ended by current user (via fallback)`);
-          }
+          setStatusAnnouncement(partnerAlive ? STATUS_MESSAGES.CHAT_ENDED : STATUS_MESSAGES.DISCONNECTED);
         }
       } catch (err) {
-        const errorTimestamp = new Date().toISOString();
-        console.error(`[Polling ${errorTimestamp}] Polling error:`, err);
+        console.error('[Polling] Unexpected error:', err);
+      } finally {
+        isPollingRef.current = false;
       }
-    }, 5000); // Poll every 5 seconds
+    }, 5000);
 
-    return () => {
-      const cleanupTimestamp = new Date().toISOString();
-      console.log(`[Polling ${cleanupTimestamp}] Stopping fallback status check`);
-      clearInterval(pollingInterval);
-    };
-  }, [session, roomId, roomStatus]);
+    return () => clearInterval(pollInterval);
+  }, [roomId, session?.id, roomStatus, connectionStatus]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

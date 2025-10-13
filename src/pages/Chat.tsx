@@ -85,6 +85,63 @@ const Chat = () => {
     { id: session?.id || "", name: session?.username || "Anonymous" }
   );
 
+  // ============================================================================
+  // ✅ Heartbeat System for Partner Disconnect Detection
+  // Sends heartbeat every 15s to allow partner to detect disconnect within ~30s
+  // ============================================================================
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!session?.id || roomStatus !== 'active') return;
+
+    const sendHeartbeat = async () => {
+      // ✅ Prevent flood on rapid status toggles
+      if (Date.now() - lastSentRef.current < 5000) {
+        console.log('[Chat] Skipping heartbeat - too soon since last send');
+        return;
+      }
+
+      // ✅ Skip if offline to prevent error spam
+      if (!navigator.onLine) {
+        console.log('[Chat] Skipping heartbeat - offline');
+        return;
+      }
+
+      try {
+        const { error } = await supabase
+          .from('guest_sessions')
+          .update({ last_heartbeat_at: new Date().toISOString() })
+          .eq('id', session.id);
+
+        if (error) {
+          console.error('[Chat] Heartbeat error:', error);
+        } else {
+          lastSentRef.current = Date.now();
+          console.log('[Chat] Heartbeat sent');
+        }
+      } catch (err) {
+        console.error('[Chat] Heartbeat failed:', err);
+      }
+    };
+
+    // Send initial heartbeat
+    sendHeartbeat();
+
+    // Send heartbeat every 15 seconds
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(sendHeartbeat, 15000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      // Send final heartbeat on unmount
+      sendHeartbeat();
+    };
+  }, [session?.id, roomStatus]);
+
   // Auto-hide expiry banner after first message
   useEffect(() => {
     if (messages.length > 0) {

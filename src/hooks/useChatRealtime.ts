@@ -78,6 +78,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
   const retryDelayRef = useRef(1000);
   const maxRetryDelay = 10000;
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isPollingRef = useRef(false);
 
   // Use consolidated timer hook for message expiration
   useEphemeralMessages({ messages, setMessages });
@@ -379,7 +380,6 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
   useEffect(() => {
     if (!roomId || !sessionId) return;
 
-    const isPollingRef = useRef(false);
     let pollCount = 0;
     let lastSuccessfulPoll = Date.now();
 

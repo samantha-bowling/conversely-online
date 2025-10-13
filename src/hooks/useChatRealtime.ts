@@ -347,7 +347,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
     return () => {
       const cleanupTimestamp = new Date().toISOString();
-      console.log(`[Realtime ${cleanupTimestamp}] Cleaning up consolidated chat channel`);
+      console.log(`[Realtime ${cleanupTimestamp}] 🧹 Cleaning up consolidated channel (intentional teardown)`);
       
       clearInterval(stateCheckInterval);
       if (retryTimeoutRef.current) {
@@ -366,7 +366,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
       isSubscribedRef.current = false;
     };
-  }, [roomId, session]); // Stable dependencies only
+  }, [roomId, session?.id]); // ✅ Only depend on session.id primitive to prevent unnecessary teardowns
 
   // ============================================================================
   // ✅ Polling fallback with heartbeat-based disconnect detection

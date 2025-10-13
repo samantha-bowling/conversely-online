@@ -192,12 +192,14 @@ Deno.serve(async (req) => {
     // Get all other sessions with answers, filtering for freshness, activity, and test mode
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString();
+    // Allow newly created sessions a 3-second grace period on is_searching check
+    const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
     const { data: otherSessions } = await supabase
       .from('survey_answers')
       .select('session_id, question_id, answer, guest_sessions!inner(expires_at, created_at, is_test, is_searching, last_heartbeat_at, times_blocked)')
       .neq('session_id', session_id)
       .eq('guest_sessions.is_test', sessionData.is_test)
-      .eq('guest_sessions.is_searching', true)
+      .or(`is_searching.eq.true,created_at.gt.${threeSecondsAgo}`, { foreignTable: 'guest_sessions' })
       .gt('guest_sessions.expires_at', new Date().toISOString())
       .gt('guest_sessions.created_at', tenMinutesAgo)
       .gt('guest_sessions.last_heartbeat_at', thirtySecondsAgo)

@@ -20,7 +20,11 @@ const Matching = () => {
   const [checkingActivity, setCheckingActivity] = useState(false);
   const [retryEnabled, setRetryEnabled] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [presenceReady, setPresenceReady] = useState(false);
+  const [matchAttempts, setMatchAttempts] = useState(0);
+  const [isMatching, setIsMatching] = useState(false);
   const targetEndTimeRef = useRef<number | null>(null);
+  const setupStartTimeRef = useRef<number>(0);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const presenceChannelRef = useRef<any>(null);
 
@@ -28,55 +32,88 @@ const Matching = () => {
   useEffect(() => {
     if (!session?.id) return;
 
+    let cancelled = false;
+
     const setupPresence = async () => {
-      console.log('[Presence] Setting up hybrid presence system');
+      setupStartTimeRef.current = Date.now();
+      console.log('[Presence] Starting setup at', setupStartTimeRef.current);
 
-      // 1. Mark as searching
-      await supabase
-        .from('guest_sessions')
-        .update({ is_searching: true, last_heartbeat_at: new Date().toISOString() })
-        .eq('id', session.id);
+      try {
+        // 1. Mark as searching + initial heartbeat (atomic operation)
+        const { error: updateError } = await supabase
+          .from('guest_sessions')
+          .update({ 
+            is_searching: true, 
+            last_heartbeat_at: new Date().toISOString() 
+          })
+          .eq('id', session.id);
 
-      // 2. Subscribe to Realtime presence channel (lightweight keep-alive)
-      const channel = supabase.channel(`presence:matching:${session.id}`, {
-        config: { presence: { key: session.id } }
-      });
+        if (updateError) throw updateError;
+        console.log('[Presence] DB flags set at', Date.now() - setupStartTimeRef.current, 'ms');
 
-      channel.on('presence', { event: 'sync' }, () => {
-        console.log('[Presence] Channel sync');
-      });
+        // 2. Subscribe to Realtime presence channel
+        const channel = supabase.channel(`presence:matching:${session.id}`, {
+          config: { presence: { key: session.id } }
+        });
 
-      await channel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ 
-            userId: session.id, 
-            searching: true, 
-            timestamp: Date.now() 
+        channel.on('presence', { event: 'sync' }, () => {
+          console.log('[Presence] Channel sync');
+        });
+
+        // Wait for subscription to complete
+        await new Promise<void>((resolve, reject) => {
+          channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              await channel.track({ 
+                userId: session.id, 
+                searching: true, 
+                timestamp: Date.now() 
+              });
+              console.log('[Presence] Channel subscribed at', Date.now() - setupStartTimeRef.current, 'ms');
+              resolve();
+            } else if (status === 'CHANNEL_ERROR') {
+              reject(new Error('Channel subscription failed'));
+            }
           });
-        }
-      });
+        });
 
-      presenceChannelRef.current = channel;
+        presenceChannelRef.current = channel;
 
-      // 3. Start SQL heartbeat fallback (every 15s)
-      heartbeatIntervalRef.current = setInterval(async () => {
-        try {
-          await supabase
-            .from('guest_sessions')
-            .update({ last_heartbeat_at: new Date().toISOString() })
-            .eq('id', session.id);
-          console.log('[Heartbeat] Sent at', new Date().toISOString());
-        } catch (error) {
-          console.error('[Heartbeat] Error:', error);
+        // 3. Start SQL heartbeat fallback (every 15s)
+        heartbeatIntervalRef.current = setInterval(async () => {
+          try {
+            await supabase
+              .from('guest_sessions')
+              .update({ last_heartbeat_at: new Date().toISOString() })
+              .eq('id', session.id);
+            console.log('[Heartbeat] Sent at', new Date().toISOString());
+          } catch (error) {
+            console.error('[Heartbeat] Error:', error);
+          }
+        }, 15000);
+
+        // ✅ SIGNAL READY - All async operations complete
+        if (!cancelled) {
+          const totalSetupTime = Date.now() - setupStartTimeRef.current;
+          console.log('[Presence] ✅ Setup complete in', totalSetupTime, 'ms');
+          setPresenceReady(true);
         }
-      }, 15000);
+
+      } catch (error) {
+        console.error('[Presence] Setup failed:', error);
+        // Fallback: still allow matching after 3s even if presence fails
+        if (!cancelled) {
+          setTimeout(() => setPresenceReady(true), 3000);
+        }
+      }
     };
 
     setupPresence();
 
     // Cleanup
     return () => {
-      console.log('[Presence] Cleaning up hybrid presence system');
+      cancelled = true;
+      console.log('[Presence] Cleaning up');
       
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
@@ -87,7 +124,6 @@ const Matching = () => {
         supabase.removeChannel(presenceChannelRef.current);
       }
 
-      // Mark as no longer searching
       if (session?.id) {
         supabase
           .from('guest_sessions')
@@ -98,9 +134,20 @@ const Matching = () => {
     };
   }, [session?.id]);
 
+  // Conditional match trigger - only starts after presence is ready
   useEffect(() => {
-    const findMatch = async () => {
-      if (!session) return;
+    // ⏸️ Wait for presence to be ready
+    if (!presenceReady || !session) return;
+
+    const startMatching = async () => {
+      if (isMatching) {
+        console.log('[Matching] Already in progress, skipping');
+        return;
+      }
+
+      setIsMatching(true);
+      const matchStartTime = Date.now();
+      console.log('[Timing] Match attempt started at', matchStartTime, '(setup took', matchStartTime - setupStartTimeRef.current, 'ms)');
 
       try {
         const { data, error } = await supabase.functions.invoke<MatchOppositeResponse>('match-opposite');
@@ -116,6 +163,8 @@ const Matching = () => {
           return;
         }
 
+        console.log('[Matching] Response:', data.status, 'in', Date.now() - matchStartTime, 'ms');
+
         if (data.status === 'cooldown') {
           setStatus('cooldown');
           setWaitSeconds(data.wait_seconds || 0);
@@ -127,9 +176,25 @@ const Matching = () => {
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
           setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
+          console.log('[Matching] ✅ Match found, redirecting to room', data.room_id);
           setTimeout(() => {
             navigate(`/chat/${data.room_id}`);
           }, TIMING.MATCH_FOUND_REDIRECT);
+        } else if (data.status === 'no_match') {
+          setMatchAttempts(prev => prev + 1);
+          
+          // 🔄 Auto-retry once after 2s (handles DB propagation lag)
+          if (matchAttempts === 0) {
+            console.log('[Matching] No match on first attempt, retrying in 2s...');
+            setTimeout(() => {
+              setIsMatching(false);
+              startMatching();
+            }, 2000);
+          } else {
+            console.log('[Matching] No match after retry');
+            setStatus("not-found");
+            setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
+          }
         } else {
           setStatus("not-found");
           setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
@@ -137,12 +202,16 @@ const Matching = () => {
       } catch (error) {
         handleError(error, { description: ERROR_MESSAGES.MATCH_ERROR });
         setStatus("not-found");
+      } finally {
+        // Debounce cooldown (prevent rapid re-calls)
+        setTimeout(() => setIsMatching(false), 1000);
       }
     };
 
-    const timeout = setTimeout(findMatch, TIMING.MATCHING_SEARCH_DELAY);
+    // Start matching after a brief delay to ensure presence fully propagated
+    const timeout = setTimeout(startMatching, 500);
     return () => clearTimeout(timeout);
-  }, [navigate, session]);
+  }, [presenceReady, session, navigate, matchAttempts, isMatching]);
 
   // Countdown timer effect - timestamp-based for resilience to tab throttling
   useEffect(() => {

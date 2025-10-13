@@ -300,6 +300,14 @@ export type Database = {
         Args: { _session_id: string; _user_id: string }
         Returns: boolean
       }
+      check_partner_heartbeat: {
+        Args: { _my_session_id: string; _room_id: string }
+        Returns: {
+          last_heartbeat: string
+          partner_alive: boolean
+          partner_session_id: string
+        }[]
+      }
       cleanup_expired_messages: {
         Args: Record<PropertyKey, never>
         Returns: undefined

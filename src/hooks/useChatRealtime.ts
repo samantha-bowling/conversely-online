@@ -408,17 +408,17 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
         // ✅ Check partner heartbeat
         const { data: heartbeatData, error: heartbeatError } = await supabase
-          .rpc('check_partner_heartbeat', {
+          .rpc('check_partner_heartbeat' as any, {
             _room_id: roomId,
             _my_session_id: session.id
-          });
+          }) as any;
 
         if (heartbeatError) {
           console.error('[Polling] Heartbeat check error:', heartbeatError);
         }
 
         // ✅ Warn if empty RPC result (shouldn't happen, but defensive)
-        if (!heartbeatData?.length) {
+        if (!heartbeatData || !Array.isArray(heartbeatData) || heartbeatData.length === 0) {
           console.warn('[Polling] No heartbeat data returned - defaulting to alive');
         }
 
@@ -448,7 +448,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
           console.log(`[Polling] DISCONNECT DETECTED via ${disconnectReason}`);
           
           setRoomStatus('ended');
-          setStatusAnnouncement(partnerAlive ? STATUS_MESSAGES.CHAT_ENDED : STATUS_MESSAGES.DISCONNECTED);
+          setStatusAnnouncement(partnerAlive ? STATUS_MESSAGES.DISCONNECTED : STATUS_MESSAGES.DISCONNECTED);
         }
       } catch (err) {
         console.error('[Polling] Unexpected error:', err);

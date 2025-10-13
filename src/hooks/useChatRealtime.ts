@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +51,9 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
   const navigate = useNavigate();
   const { session } = useSession();
   
+  // Stabilize session ID to prevent unnecessary effect triggers from session object recreation
+  const sessionId = useMemo(() => session?.id, [session?.id]);
+  
   // Room state
   const [roomStatus, setRoomStatus] = useState<string>("active");
   const [partnerSessionId, setPartnerSessionId] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
   // Initial data fetching
   useEffect(() => {
-    if (!session?.id || !roomId) {
+    if (!sessionId || !roomId) {
       setLoading(false);
       return;
     }
@@ -162,12 +165,12 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
     };
 
     fetchInitialData();
-  }, [roomId, session?.id, navigate]); // ✅ Only depend on session.id primitive
+  }, [roomId, sessionId, navigate]);
 
   // Consolidated realtime subscription
   useEffect(() => {
-    console.log('[Realtime] Session ID for realtime effect:', session?.id);
-    if (!roomId || !session?.id || isSubscribedRef.current) {
+    console.log('[Realtime] Session ID for realtime effect:', sessionId);
+    if (!roomId || !sessionId || isSubscribedRef.current) {
       return;
     }
 
@@ -367,14 +370,14 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
 
       isSubscribedRef.current = false;
     };
-  }, [roomId, session?.id]); // ✅ Only depend on session.id primitive to prevent unnecessary teardowns
+  }, [roomId, sessionId]);
 
   // ============================================================================
   // ✅ Polling fallback with heartbeat-based disconnect detection
   // Checks every 5s for room status changes AND partner heartbeat liveness
   // ============================================================================
   useEffect(() => {
-    if (!roomId || !session?.id) return;
+    if (!roomId || !sessionId) return;
 
     const isPollingRef = useRef(false);
     let pollCount = 0;
@@ -459,7 +462,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [roomId, session?.id, roomStatus, connectionStatus]);
+  }, [roomId, sessionId, roomStatus, connectionStatus]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

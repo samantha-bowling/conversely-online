@@ -38,6 +38,18 @@ const Chat = () => {
   }
 
   const roomId = roomIdParam;
+
+  // Wait for session to stabilize before mounting chat
+  if (!session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading chat...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [inputText, setInputText] = useState("");
   const [showGuidelines, setShowGuidelines] = useState(true);
   const [showPromptDialog, setShowPromptDialog] = useState(false);

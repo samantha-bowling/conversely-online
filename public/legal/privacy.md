@@ -90,6 +90,8 @@ We do NOT use your data for:
 
 ## 4. Data Retention & Deletion
 
+For complete details on how long we retain your data and our automated deletion processes, see our [Data Retention Policy](/data-retention).
+
 | Data Type | Retention Period | Reason |
 |-----------|------------------|--------|
 | **Messages** | 2 minutes | Privacy by design; messages auto-expire |

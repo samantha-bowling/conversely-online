@@ -39,6 +39,13 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
           Privacy
         </Button>
         <span>•</span>
+        <a 
+          href="/data-retention" 
+          className="hover:text-foreground transition-colors"
+        >
+          Data Retention
+        </a>
+        <span>•</span>
         {variant === 'chat' ? (
           <Button 
             variant="link" 

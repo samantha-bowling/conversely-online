@@ -9,12 +9,14 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
 // Read legal documents
-const termsContent = readFileSync(join(projectRoot, 'src/legal/terms.md'), 'utf-8');
-const privacyContent = readFileSync(join(projectRoot, 'src/legal/privacy.md'), 'utf-8');
+const termsContent = readFileSync(join(projectRoot, 'public/legal/terms.md'), 'utf-8');
+const privacyContent = readFileSync(join(projectRoot, 'public/legal/privacy.md'), 'utf-8');
+const dataRetentionContent = readFileSync(join(projectRoot, 'public/legal/data-retention.md'), 'utf-8');
 
 // Compute SHA-256 hashes
 const tosHash = createHash('sha256').update(termsContent).digest('hex').substring(0, 16);
 const privacyHash = createHash('sha256').update(privacyContent).digest('hex').substring(0, 16);
+const dataRetentionHash = createHash('sha256').update(dataRetentionContent).digest('hex').substring(0, 16);
 
 // Extract version from markdown front matter or default
 const versionMatch = termsContent.match(/\*\*Last Updated:\*\* (.+)/);
@@ -30,13 +32,20 @@ export const LEGAL_VERSION = '${version}';
 // These are used to detect material changes and prompt re-acceptance
 export const TOS_HASH = '${tosHash}';
 export const PRIVACY_HASH = '${privacyHash}';
+export const DATA_RETENTION_HASH = '${dataRetentionHash}';
 
 // Check if legal documents have changed since last acceptance
-export const hasLegalChanged = (lastAcceptedVersion: string, lastTosHash: string, lastPrivacyHash: string): boolean => {
+export const hasLegalChanged = (
+  lastAcceptedVersion: string, 
+  lastTosHash: string, 
+  lastPrivacyHash: string,
+  lastDataRetentionHash?: string
+): boolean => {
   return (
     lastAcceptedVersion !== LEGAL_VERSION ||
     lastTosHash !== TOS_HASH ||
-    lastPrivacyHash !== PRIVACY_HASH
+    lastPrivacyHash !== PRIVACY_HASH ||
+    (lastDataRetentionHash !== undefined && lastDataRetentionHash !== DATA_RETENTION_HASH)
   );
 };
 `;
@@ -48,3 +57,4 @@ console.log('✓ Legal document hashes generated successfully');
 console.log(`  Version: ${version}`);
 console.log(`  ToS Hash: ${tosHash}`);
 console.log(`  Privacy Hash: ${privacyHash}`);
+console.log(`  Data Retention Hash: ${dataRetentionHash}`);

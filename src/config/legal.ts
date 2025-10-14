@@ -7,12 +7,19 @@ export const LEGAL_VERSION = 'October 6, 2025';
 // These are used to detect material changes and prompt re-acceptance
 export const TOS_HASH = '2f9e1c4d7a8b3e6f';
 export const PRIVACY_HASH = '9c3f7e2a5d1b8e4f';
+export const DATA_RETENTION_HASH = 'placeholder_hash';
 
 // Check if legal documents have changed since last acceptance
-export const hasLegalChanged = (lastAcceptedVersion: string, lastTosHash: string, lastPrivacyHash: string): boolean => {
+export const hasLegalChanged = (
+  lastAcceptedVersion: string, 
+  lastTosHash: string, 
+  lastPrivacyHash: string,
+  lastDataRetentionHash?: string
+): boolean => {
   return (
     lastAcceptedVersion !== LEGAL_VERSION ||
     lastTosHash !== TOS_HASH ||
-    lastPrivacyHash !== PRIVACY_HASH
+    lastPrivacyHash !== PRIVACY_HASH ||
+    (lastDataRetentionHash !== undefined && lastDataRetentionHash !== DATA_RETENTION_HASH)
   );
 };

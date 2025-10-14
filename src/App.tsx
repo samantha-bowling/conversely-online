@@ -11,6 +11,7 @@ import Matching from "./pages/Matching";
 import Chat from "./pages/Chat";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import DataRetention from "./pages/DataRetention";
 import PrivacyRequests from "./pages/PrivacyRequests";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
@@ -35,6 +36,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/data-retention" element={<DataRetention />} />
             <Route path="/privacy-requests" element={<PrivacyRequests />} />
             <Route path="/report" element={<Report />} />
             <Route path="*" element={<NotFound />} />

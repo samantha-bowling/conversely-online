@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateMessageContent, sanitizeText } from '../_shared/validation.ts';
+import { validateMessageContent, sanitizeText, checkRateLimit, logRateLimit } from '../_shared/validation.ts';
 import { ALL_QUESTION_IDS, isValidQuestionId } from '../_shared/survey-questions.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,33 @@ Deno.serve(async (req) => {
 
     console.log(`Processing survey submission for session ${session_id}, user ${user.id}`);
 
-    // 3. Verify session ownership
+    // 3. Rate limiting: 3 surveys per 10 minutes per session
+    const rateLimitKey = `submit-survey:${session_id}`;
+    const rateLimit = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.SUBMIT_SURVEY.MAX_REQUESTS,
+      RATE_LIMIT_CONFIG.SUBMIT_SURVEY.WINDOW_MS
+    );
+
+    if (!rateLimit.allowed) {
+      logRateLimit('submit-survey', session_id, rateLimit.retryAfter ?? 0);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many survey submissions. Please try again later.',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
+          status: 429
+        }
+      );
+    }
+
+    // 4. Verify session ownership
     const { data: session, error: sessionError } = await supabase
       .from('guest_sessions')
       .select('id, user_id')
@@ -67,7 +94,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Check for duplicate submissions (prevent re-submission)
+    // 5. Check for duplicate submissions (prevent re-submission)
     const { data: existingAnswers, error: checkError } = await supabase
       .from('survey_answers')
       .select('id')
@@ -90,7 +117,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Validate each answer
+    // 6. Validate each answer
     const validatedAnswers = [];
     for (const answer of answers) {
       const { question_id, answer: answerText } = answer;
@@ -133,7 +160,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6. Require minimum number of answers
+    // 7. Require minimum number of answers
     if (validatedAnswers.length < 5) {
       return new Response(
         JSON.stringify({ error: 'At least 5 answers required' }),
@@ -141,7 +168,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 7. Insert all validated answers
+    // 8. Insert all validated answers
     const { error: insertError } = await supabase
       .from('survey_answers')
       .insert(validatedAnswers);

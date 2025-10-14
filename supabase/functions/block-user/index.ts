@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { validateSession, verifyRoomParticipant, checkRateLimit } from '../_shared/validation.ts';
+import { validateSession, verifyRoomParticipant, checkRateLimit, logRateLimit } from '../_shared/validation.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,17 +89,24 @@ Deno.serve(async (req) => {
 
     // Rate limiting: 3 blocks per hour per session
     const rateLimitKey = `block-user:${session_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 3, 3600000); // 3 per hour
+    const rateLimit = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.BLOCK_USER.MAX_REQUESTS,
+      RATE_LIMIT_CONFIG.BLOCK_USER.WINDOW_MS
+    );
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      logRateLimit('block-user', session_id, rateLimit.retryAfter ?? 0);
       return new Response(
         JSON.stringify({
           error: 'Rate limit exceeded',
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: securityHeaders,
+          headers: {
+            ...securityHeaders,
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
           status: 429,
         }
       );

@@ -312,6 +312,51 @@ export function checkRateLimit(
 }
 
 /**
+ * Standardized rate limit logging with structured output
+ * Provides consistent log format across all edge functions
+ */
+export function logRateLimit(
+  functionName: string,
+  identifier: string,
+  retryAfter: number
+): void {
+  const logData = {
+    level: 'warn',
+    type: 'rate_limit',
+    function: functionName,
+    identifier,
+    retryAfter,
+    timestamp: new Date().toISOString()
+  };
+  console.warn(`[RateLimit] ${functionName}: ${identifier} exceeded limit (retry in ${retryAfter}s)`, logData);
+}
+
+/**
+ * Extract client IP address from request headers
+ * Supports multiple CDN/proxy headers with graceful fallback
+ */
+export function extractClientIp(req: Request): string {
+  // Check headers in order of preference
+  const xForwardedFor = req.headers.get('x-forwarded-for');
+  if (xForwardedFor) {
+    // x-forwarded-for can be comma-separated list, take first
+    return xForwardedFor.split(',')[0].trim();
+  }
+  
+  const cfConnectingIp = req.headers.get('cf-connecting-ip');
+  if (cfConnectingIp) return cfConnectingIp;
+  
+  const xRealIp = req.headers.get('x-real-ip');
+  if (xRealIp) return xRealIp;
+  
+  const flyClientIp = req.headers.get('fly-client-ip');
+  if (flyClientIp) return flyClientIp;
+  
+  // Graceful fallback
+  return 'unknown';
+}
+
+/**
  * Verify user is participant in room
  */
 export async function verifyRoomParticipant(

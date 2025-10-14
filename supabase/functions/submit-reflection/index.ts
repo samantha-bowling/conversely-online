@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { checkRateLimit, logRateLimit } from '../_shared/validation.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +64,31 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: securityHeaders }
+      );
+    }
+
+    // Rate limiting: 10 reflections per 10 minutes per user
+    const rateLimitKey = `submit-reflection:${user.id}`;
+    const rateLimit = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.SUBMIT_REFLECTION.MAX_REQUESTS,
+      RATE_LIMIT_CONFIG.SUBMIT_REFLECTION.WINDOW_MS
+    );
+
+    if (!rateLimit.allowed) {
+      logRateLimit('submit-reflection', user.id, rateLimit.retryAfter ?? 0);
+      return new Response(
+        JSON.stringify({
+          error: 'Too many reflection submissions. Please try again later.',
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          headers: {
+            ...securityHeaders,
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
+          status: 429
+        }
       );
     }
 

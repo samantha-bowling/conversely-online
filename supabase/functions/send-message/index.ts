@@ -4,7 +4,9 @@ import {
   validateMessageContent,
   verifyRoomParticipant,
   checkRateLimit,
+  logRateLimit,
 } from '../_shared/validation.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,19 +93,26 @@ Deno.serve(async (req) => {
 
     console.log('Send message request:', { session_id, room_id, contentLength: content?.length });
 
-    // Rate limiting: 30 messages per minute per session
+    // Rate limiting: 60 messages per minute per session
     const rateLimitKey = `send-message:${session_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 30, 60000); // 30 per minute
+    const rateLimit = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.SEND_MESSAGE.MAX_REQUESTS,
+      RATE_LIMIT_CONFIG.SEND_MESSAGE.WINDOW_MS
+    );
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      logRateLimit('send-message', session_id, rateLimit.retryAfter ?? 0);
       return new Response(
         JSON.stringify({
           error: 'Rate limit exceeded',
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: securityHeaders,
+          headers: {
+            ...securityHeaders,
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
           status: 429,
         }
       );

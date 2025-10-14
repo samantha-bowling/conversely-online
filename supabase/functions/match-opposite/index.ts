@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
+import { checkRateLimit, logRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
 import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 // Heartbeat configuration for ghost account prevention
@@ -90,18 +90,15 @@ Deno.serve(async (req) => {
     const session_id = sessionData.id;
 
     // Rate limiting using centralized config
-    const rateLimitKey = `match-opposite:${session_id}`;
+    const rateLimitKey = `match-opposite:${user.id}`;
     const rateLimit = checkRateLimit(
       rateLimitKey, 
-      RATE_LIMIT_CONFIG.MAX_REQUESTS, 
-      RATE_LIMIT_CONFIG.WINDOW_MS
+      RATE_LIMIT_CONFIG.MATCH_OPPOSITE.MAX_REQUESTS, 
+      RATE_LIMIT_CONFIG.MATCH_OPPOSITE.WINDOW_MS
     );
 
     if (!rateLimit.allowed) {
-      console.warn(
-        `[RateLimit] Session ${session_id} exceeded limit (${RATE_LIMIT_CONFIG.DESCRIPTION})`,
-        { retry_after: rateLimit.retryAfter }
-      );
+      logRateLimit('match-opposite', user.id, rateLimit.retryAfter ?? 0);
       return new Response(
         JSON.stringify({
           status: 'rate_limited',
@@ -109,7 +106,10 @@ Deno.serve(async (req) => {
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: securityHeaders,
+          headers: {
+            ...securityHeaders,
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
           status: 429,
         }
       );

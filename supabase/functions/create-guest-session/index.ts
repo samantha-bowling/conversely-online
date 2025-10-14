@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
-import { checkRateLimit } from '../_shared/validation.ts';
+import { checkRateLimit, logRateLimit, extractClientIp } from '../_shared/validation.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,22 +92,27 @@ Deno.serve(async (req) => {
     }
 
     // Rate limiting: 10 sessions per IP per hour
-    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 
-                     req.headers.get('x-real-ip') || 
-                     'unknown';
+    const clientIp = extractClientIp(req);
     
     const rateLimitKey = `create-session:${clientIp}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 10, 3600000); // 10 per hour
+    const rateLimit = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.CREATE_SESSION.MAX_REQUESTS,
+      RATE_LIMIT_CONFIG.CREATE_SESSION.WINDOW_MS
+    );
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for IP:', clientIp);
+      logRateLimit('create-guest-session', clientIp, rateLimit.retryAfter ?? 0);
       return new Response(
         JSON.stringify({
           error: 'Too many session requests. Please try again later.',
           retry_after: rateLimit.retryAfter,
         }),
         {
-          headers: securityHeaders,
+          headers: {
+            ...securityHeaders,
+            'Retry-After': (rateLimit.retryAfter ?? 0).toString()
+          },
           status: 429,
         }
       );

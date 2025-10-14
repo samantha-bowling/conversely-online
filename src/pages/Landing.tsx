@@ -91,7 +91,11 @@ const Landing = () => {
         </div>
 
         <div className="pt-8 space-y-4">
-          <ConversationButton variant="primary" onClick={handleStartClick}>
+          <ConversationButton 
+            variant="primary" 
+            onClick={handleStartClick}
+            aria-label="Start conversation - find someone with different views"
+          >
             Let's Get Started
           </ConversationButton>
 
@@ -100,10 +104,12 @@ const Landing = () => {
               onClick={checkActivity}
               disabled={checkingActivity}
               className="text-sm font-bold underline hover:no-underline text-foreground/80 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Check current activity level on the platform"
             >
               {checkingActivity ? (
                 <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+                  <span className="sr-only">Checking activity level...</span>
                   Checking...
                 </span>
               ) : (

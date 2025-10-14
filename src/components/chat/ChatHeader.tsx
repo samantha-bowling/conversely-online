@@ -72,6 +72,7 @@ export const ChatHeader = ({
             )}
             role="status"
             aria-live="polite"
+            aria-label={getConnectionText()}
           >
             <Wifi className="w-3 h-3 mr-1" aria-hidden="true" />
             <span className="hidden sm:inline">{getConnectionText()}</span>

@@ -20,6 +20,10 @@ const App = () => (
   <SessionProvider>
     <TooltipProvider>
       <ErrorBoundary>
+        {/* Global screen reader announcers */}
+        <div id="sr-announcer-polite" role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
+        <div id="sr-announcer-assertive" role="alert" aria-live="assertive" aria-atomic="true" className="sr-only" />
+        
         <Toaster />
         <Sonner />
         <BrowserRouter>

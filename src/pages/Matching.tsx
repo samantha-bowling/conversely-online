@@ -401,10 +401,12 @@ const Matching = () => {
                   variant="primary"
                   onClick={handleRetryMatch}
                   disabled={isRetrying}
+                  aria-label="Retry finding a conversation match"
                 >
                   {isRetrying ? (
                     <span className="inline-flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      <span className="sr-only">Restarting matching process...</span>
                       Starting...
                     </span>
                   ) : (
@@ -462,10 +464,12 @@ const Matching = () => {
                   variant="primary"
                   onClick={handleRetryMatch}
                   disabled={isRetrying}
+                  aria-label="Retry finding a conversation match after rate limit"
                 >
                   {isRetrying ? (
                     <span className="inline-flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      <span className="sr-only">Restarting matching process...</span>
                       Starting...
                     </span>
                   ) : (

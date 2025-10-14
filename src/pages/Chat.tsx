@@ -8,6 +8,7 @@ import { isUuid } from "@/lib/validation-utils";
 import { handleApiError } from "@/lib/error-handler";
 import { getRandomPrompt } from "@/config/prompts";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@/config/constants";
+import { HEARTBEAT_INTERVAL_MS } from "@/config/heartbeat";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -129,9 +130,9 @@ const Chat = () => {
     // Send initial heartbeat
     sendHeartbeat();
 
-    // Send heartbeat every 15 seconds
+    // Send heartbeat using centralized constant
     if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(sendHeartbeat, 15000);
+    intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
     return () => {
       if (intervalRef.current) {
@@ -142,6 +143,44 @@ const Chat = () => {
       sendHeartbeat();
     };
   }, [session?.id, roomStatus]);
+
+  // Send final heartbeat attempt on tab close (Defense in Depth)
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const handleBeforeUnload = () => {
+      // Use navigator.sendBeacon for reliable unload signaling
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const url = `${supabaseUrl}/rest/v1/guest_sessions?id=eq.${session.id}`;
+      
+      const payload = JSON.stringify({ 
+        last_heartbeat_at: new Date().toISOString()
+      });
+
+      const blob = new Blob([payload], { type: 'application/json' });
+      const sent = navigator.sendBeacon(url, blob);
+      
+      // Fallback to fetch with keepalive if beacon fails (rare)
+      if (!sent) {
+        fetch(url, { 
+          method: 'PATCH', 
+          body: payload,
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        }).catch(() => {/* Ignore errors during unload */});
+      }
+      
+      console.log('[Chat] Final heartbeat beacon sent:', sent);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session?.id]);
 
   // Auto-hide expiry banner after first message
   useEffect(() => {

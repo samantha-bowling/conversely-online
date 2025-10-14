@@ -1,5 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
+// Heartbeat configuration for ghost account prevention
+const ACTIVITY_HEARTBEAT_TTL_MS = 15000; // Activity counts require 15s freshness
+const HEARTBEAT_DRIFT_MS = 2000;         // Clock skew buffer
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -34,18 +38,22 @@ Deno.serve(async (req) => {
 
     console.log('Querying available users for activity level');
 
-    // Query for available users
+    // GHOST ACCOUNT PROTECTION: Only count genuinely active users
     // Users are considered available if they:
     // 1. Have completed the survey (at least 5 answers)
     // 2. Are not in cooldown (next_match_at <= now)
     // 3. Haven't been blocked excessively (times_blocked < 5)
     // 4. Session hasn't expired
+    // 5. Have sent a heartbeat within the last 17s (15s + 2s drift) ← NEW
+    const heartbeatCutoff = new Date(Date.now() - (ACTIVITY_HEARTBEAT_TTL_MS + HEARTBEAT_DRIFT_MS)).toISOString();
+    
     const { data: sessions, error: sessionsError } = await supabase
       .from('guest_sessions')
       .select('id, next_match_at, times_blocked, expires_at')
       .lt('times_blocked', 5)
       .gt('expires_at', new Date().toISOString())
-      .lte('next_match_at', new Date().toISOString());
+      .lte('next_match_at', new Date().toISOString())
+      .gt('last_heartbeat_at', heartbeatCutoff); // Only include live users with fresh heartbeat
 
     if (sessionsError) {
       console.error('Error querying sessions:', sessionsError);

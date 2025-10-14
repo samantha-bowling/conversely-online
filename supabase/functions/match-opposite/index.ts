@@ -1,6 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
 
+// Heartbeat configuration for ghost account prevention
+const MATCH_HEARTBEAT_TTL_MS = 15000; // Match requires 15s freshness
+const HEARTBEAT_DRIFT_MS = 2000;      // Clock skew buffer
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -189,9 +193,13 @@ Deno.serve(async (req) => {
     }
     console.log('Active room exclusion - busy sessions:', busySessionIds.size);
 
-    // Get all other sessions with answers, filtering for freshness, activity, and test mode
+    // GHOST ACCOUNT PROTECTION:
+    // - Client heartbeats: Every 15s
+    // - Matching window: 15s + 2s drift (allows 1 missed beat + clock skew)
+    // - Max ghost visibility: ~32s total (15s last beat + 15s timeout + 2s drift)
+    // - This prevents matching with users who just closed their tab/browser
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const thirtySecondsAgo = new Date(Date.now() - 30 * 1000).toISOString();
+    const heartbeatCutoff = new Date(Date.now() - (MATCH_HEARTBEAT_TTL_MS + HEARTBEAT_DRIFT_MS)).toISOString();
     // Allow newly created sessions a 3-second grace period on is_searching check
     const threeSecondsAgo = new Date(Date.now() - 3000).toISOString();
     const { data: otherSessions } = await supabase
@@ -202,7 +210,7 @@ Deno.serve(async (req) => {
       .or(`is_searching.eq.true,created_at.gt.${threeSecondsAgo}`, { foreignTable: 'guest_sessions' })
       .gt('guest_sessions.expires_at', new Date().toISOString())
       .gt('guest_sessions.created_at', tenMinutesAgo)
-      .gt('guest_sessions.last_heartbeat_at', thirtySecondsAgo)
+      .gt('guest_sessions.last_heartbeat_at', heartbeatCutoff) // Tightened from 30s to 17s (15s + 2s drift)
       .lt('guest_sessions.times_blocked', 5);
     
     console.log(`[Matching] Found ${otherSessions?.length || 0} potential matches (is_test=${sessionData.is_test})`);

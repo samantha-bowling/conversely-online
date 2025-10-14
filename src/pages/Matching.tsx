@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { isMatchResponse } from "@/lib/validation";
 import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
+import { HEARTBEAT_INTERVAL_MS } from "@/config/heartbeat";
 import type { MatchOppositeResponse, ActivityLevel } from '@/types';
 
 const Matching = () => {
@@ -79,7 +80,7 @@ const Matching = () => {
 
         presenceChannelRef.current = channel;
 
-        // 3. Start SQL heartbeat fallback (every 15s)
+        // 3. Start SQL heartbeat fallback (using centralized constant)
         heartbeatIntervalRef.current = setInterval(async () => {
           try {
             await supabase
@@ -90,7 +91,7 @@ const Matching = () => {
           } catch (error) {
             console.error('[Heartbeat] Error:', error);
           }
-        }, 15000);
+        }, HEARTBEAT_INTERVAL_MS);
 
         // ✅ SIGNAL READY - All async operations complete
         if (!cancelled) {
@@ -132,6 +133,45 @@ const Matching = () => {
           .then(() => console.log('[Presence] Marked as not searching'));
       }
     };
+  }, [session?.id]);
+
+  // Send final heartbeat attempt on tab close (Defense in Depth)
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const handleBeforeUnload = () => {
+      // Use navigator.sendBeacon for reliable unload signaling
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const url = `${supabaseUrl}/rest/v1/guest_sessions?id=eq.${session.id}`;
+      
+      const payload = JSON.stringify({ 
+        is_searching: false,
+        last_heartbeat_at: new Date().toISOString()
+      });
+
+      const blob = new Blob([payload], { type: 'application/json' });
+      const sent = navigator.sendBeacon(url, blob);
+      
+      // Fallback to fetch with keepalive if beacon fails (rare)
+      if (!sent) {
+        fetch(url, { 
+          method: 'PATCH', 
+          body: payload,
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        }).catch(() => {/* Ignore errors during unload */});
+      }
+      
+      console.log('[Heartbeat] Final beacon sent:', sent);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [session?.id]);
 
   // Conditional match trigger - only starts after presence is ready

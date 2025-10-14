@@ -211,8 +211,9 @@ const Matching = () => {
           setStatusAnnouncement(`Please wait ${data.wait_seconds || 0} seconds before trying again`);
         } else if (data.status === 'rate_limited') {
           setStatus('rate-limited');
-          setWaitSeconds(data.retry_after || 60);
-          setStatusAnnouncement(`Rate limited. Please wait ${data.retry_after || 60} seconds`);
+          const waitTime = data.retry_after || 60;
+          setWaitSeconds(waitTime);
+          setStatusAnnouncement(`Too many requests. Try again in ${waitTime} seconds`);
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
           setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
@@ -261,13 +262,16 @@ const Matching = () => {
       return;
     }
 
+    // Edge case: if waitSeconds is already 0 or negative, enable retry immediately
     if (waitSeconds <= 0) {
       setRetryEnabled(true);
+      setStatusAnnouncement('You can now try matching again');
       return;
     }
 
     // Calculate absolute target time (resilient to tab throttling)
     targetEndTimeRef.current = Date.now() + (waitSeconds * 1000);
+    console.log('[Timer] Starting countdown:', waitSeconds, 'seconds until', new Date(targetEndTimeRef.current).toISOString());
 
     const interval = setInterval(() => {
       if (!targetEndTimeRef.current) {
@@ -276,17 +280,25 @@ const Matching = () => {
       }
 
       const remaining = Math.max(0, Math.floor((targetEndTimeRef.current - Date.now()) / 1000));
-      setWaitSeconds(remaining);
+      
+      // Update state if changed
+      if (remaining !== waitSeconds) {
+        setWaitSeconds(remaining);
+      }
 
       if (remaining === 0) {
+        console.log('[Timer] Countdown complete');
         clearInterval(interval);
         setRetryEnabled(true);
         setStatusAnnouncement('You can now try matching again');
       }
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [status]);
+    return () => {
+      console.log('[Timer] Cleanup');
+      clearInterval(interval);
+    };
+  }, [status, waitSeconds]);
 
   const checkActivity = async () => {
     setCheckingActivity(true);
@@ -378,7 +390,7 @@ const Matching = () => {
                     Ready to match again!
                   </span>
                 ) : (
-                  <>You can try matching again in <span className="font-semibold">{formatTime(waitSeconds)}</span></>
+                  <>Try again in <span className="font-semibold">{formatTime(waitSeconds)}</span></>
                 )}
               </p>
             </div>
@@ -413,14 +425,33 @@ const Matching = () => {
         {status === "rate-limited" && (
           <div className="space-y-6 text-center">
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold">Slow down there!</h2>
-              <p className="text-muted-foreground">
+              {/* Visual distinction: yellow warning icon */}
+              <div className="w-16 h-16 bg-yellow-500/10 rounded-full mx-auto flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-yellow-500"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">Hold on a moment</h2>
+              <p className="text-muted-foreground max-w-sm mx-auto">
                 {retryEnabled ? (
                   <span className="text-primary font-semibold animate-pulse">
                     Ready to match again!
                   </span>
                 ) : (
-                  <>You've tried matching too many times. Please wait <span className="font-semibold">{formatTime(waitSeconds)}</span> before trying again.</>
+                  <>
+                    You've tried matching several times in quick succession. 
+                    To keep things fair for everyone, try again in{' '}
+                    <span className="font-semibold text-foreground">{formatTime(waitSeconds)}</span>.
+                  </>
                 )}
               </p>
             </div>

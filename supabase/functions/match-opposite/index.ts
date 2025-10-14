@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import { checkRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
+import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
 
 // Heartbeat configuration for ghost account prevention
 const MATCH_HEARTBEAT_TTL_MS = 15000; // Match requires 15s freshness
@@ -88,12 +89,19 @@ Deno.serve(async (req) => {
 
     const session_id = sessionData.id;
 
-    // Rate limiting: 20 match attempts per 5 minutes per session
+    // Rate limiting using centralized config
     const rateLimitKey = `match-opposite:${session_id}`;
-    const rateLimit = checkRateLimit(rateLimitKey, 20, 300000); // 20 per 5 min
+    const rateLimit = checkRateLimit(
+      rateLimitKey, 
+      RATE_LIMIT_CONFIG.MAX_REQUESTS, 
+      RATE_LIMIT_CONFIG.WINDOW_MS
+    );
 
     if (!rateLimit.allowed) {
-      console.log('Rate limit exceeded for session:', session_id);
+      console.warn(
+        `[RateLimit] Session ${session_id} exceeded limit (${RATE_LIMIT_CONFIG.DESCRIPTION})`,
+        { retry_after: rateLimit.retryAfter }
+      );
       return new Response(
         JSON.stringify({
           status: 'rate_limited',

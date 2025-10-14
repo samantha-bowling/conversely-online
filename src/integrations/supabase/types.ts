@@ -160,6 +160,33 @@ export type Database = {
           },
         ]
       }
+      maintenance_logs: {
+        Row: {
+          closed_count: number
+          created_at: string
+          id: string
+          job_name: string
+          safety_clamp_triggered: boolean
+          would_close_count: number
+        }
+        Insert: {
+          closed_count?: number
+          created_at?: string
+          id?: string
+          job_name: string
+          safety_clamp_triggered?: boolean
+          would_close_count?: number
+        }
+        Update: {
+          closed_count?: number
+          created_at?: string
+          id?: string
+          job_name?: string
+          safety_clamp_triggered?: boolean
+          would_close_count?: number
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -313,6 +340,10 @@ export type Database = {
         Returns: undefined
       }
       cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_maintenance_logs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

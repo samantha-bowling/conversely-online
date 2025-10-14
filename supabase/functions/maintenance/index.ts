@@ -56,7 +56,21 @@ Deno.serve(async (req) => {
       case 'close_inactive_rooms': {
         const { error } = await supabase.rpc('close_inactive_rooms');
         if (error) throw error;
-        console.log('[Maintenance] Closed inactive rooms');
+        
+        // Query telemetry for this run
+        const { data: logs } = await supabase
+          .from('maintenance_logs')
+          .select('closed_count, would_close_count, safety_clamp_triggered')
+          .eq('job_name', 'close_inactive_rooms')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (logs?.safety_clamp_triggered) {
+          console.warn(`[Maintenance] ⚠️ Safety clamp triggered! ${logs.would_close_count} rooms eligible (max 100)`);
+        } else {
+          console.log(`[Maintenance] Closed ${logs?.closed_count || 0} inactive rooms (${logs?.would_close_count || 0} eligible)`);
+        }
         break;
       }
 

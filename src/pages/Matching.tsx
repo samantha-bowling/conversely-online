@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConversationButton } from "@/components/ConversationButton";
 import { ActivityIndicator } from "@/components/ActivityIndicator";
+import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { useSession } from "@/contexts/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -342,6 +343,13 @@ const Matching = () => {
       <div role="status" aria-live="assertive" aria-atomic="true" className="sr-only">
         {statusAnnouncement}
       </div>
+      
+      {/* Session Expiry Warning */}
+      {session?.expires_at && (
+        <div className="w-full max-w-md mb-4">
+          <SessionExpiryWarning expiresAt={session.expires_at} />
+        </div>
+      )}
       
       <main className="max-w-md w-full text-center space-y-8" role="main">
         {status === "searching" && (

@@ -9,6 +9,7 @@ import Landing from "./pages/Landing";
 import Survey from "./pages/Survey";
 import Matching from "./pages/Matching";
 import Chat from "./pages/Chat";
+import SessionExpired from "./pages/SessionExpired";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import DataRetention from "./pages/DataRetention";
@@ -38,6 +39,7 @@ const App = () => (
             </Route>
             
             {/* Public routes */}
+            <Route path="/session-expired" element={<SessionExpired />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/data-retention" element={<DataRetention />} />

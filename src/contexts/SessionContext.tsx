@@ -214,31 +214,45 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [checkExistingSession]);
 
-  // Multi-tab sync: listen for storage changes
+  // Multi-tab sync: listen for storage changes with debouncing
   useEffect(() => {
+    let debounceTimeout: NodeJS.Timeout | null = null;
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'guest_session') {
-        if (e.newValue === null) {
-          // Session removed in another tab
-          console.log('[Session] Session removed in another tab');
-          setSession(null);
-        } else if (e.newValue) {
-          // Session updated in another tab
-          try {
-            const parsed = JSON.parse(e.newValue);
-            if (new Date(parsed.expires_at) > new Date()) {
-              console.log('[Session] Session updated from another tab');
-              setSession(parsed);
-            }
-          } catch (error) {
-            console.error('[Session] Failed to parse storage event:', error);
-          }
+        // Debounce to prevent multiple tabs from triggering simultaneously
+        if (debounceTimeout) {
+          clearTimeout(debounceTimeout);
         }
+
+        debounceTimeout = setTimeout(() => {
+          if (e.newValue === null) {
+            // Session removed in another tab
+            console.log('[Session] Session removed in another tab');
+            setSession(null);
+          } else if (e.newValue) {
+            // Session updated in another tab
+            try {
+              const parsed = JSON.parse(e.newValue);
+              if (new Date(parsed.expires_at) > new Date()) {
+                console.log('[Session] Session updated from another tab');
+                setSession(parsed);
+              }
+            } catch (error) {
+              console.error('[Session] Failed to parse storage event:', error);
+            }
+          }
+        }, 100); // 100ms debounce
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
   }, []);
 
   // Monitor session expiry

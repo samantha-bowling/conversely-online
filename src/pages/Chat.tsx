@@ -17,6 +17,7 @@ import { ChatPromptDialog } from "@/components/chat/ChatPromptDialog";
 import { ReflectionDialog } from "@/components/chat/ReflectionDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { PostChatDialog } from "@/components/chat/PostChatDialog";
+import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
 import { useSessionExpiry } from "@/hooks/useSessionExpiry";
@@ -557,6 +558,13 @@ const Chat = () => {
       />
 
       <ConnectionStatusBanner status={connectionStatus} />
+
+      {/* Session Expiry Warning */}
+      {session?.expires_at && (
+        <div className="px-4 pt-2">
+          <SessionExpiryWarning expiresAt={session.expires_at} />
+        </div>
+      )}
 
       {/* Expiry Banner */}
       {showExpiryBanner && roomStatus === "active" && (

@@ -1,12 +1,17 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
+const GRACE_WINDOW_MS = 60 * 1000; // 60 seconds grace window
+
 /**
- * Monitors session expiry and redirects to home when session expires
+ * Monitors session expiry and redirects to session expired page
+ * Includes a 60-second grace window for immediate returns after expiry
  */
 export function useSessionExpiry(expiresAt: string | null) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const graceExpiryRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!expiresAt) return;
@@ -15,32 +20,70 @@ export function useSessionExpiry(expiresAt: string | null) {
     const now = Date.now();
     const timeUntilExpiry = expiryTime - now;
 
-    // If already expired, redirect immediately
+    // Check if within grace window
     if (timeUntilExpiry <= 0) {
-      toast.error("Your session has expired");
-      localStorage.removeItem("conversely_session");
-      navigate("/", { replace: true });
-      return;
+      const graceExpiry = graceExpiryRef.current || expiryTime + GRACE_WINDOW_MS;
+      graceExpiryRef.current = graceExpiry;
+
+      const timeUntilGraceExpiry = graceExpiry - now;
+
+      if (timeUntilGraceExpiry <= 0) {
+        // Grace window expired - redirect to session expired page
+        const context = {
+          wasInChat: location.pathname.includes('/chat'),
+          wasMatching: location.pathname === '/matching',
+          timestamp: Date.now()
+        };
+        
+        navigate("/session-expired", { state: context, replace: true });
+        
+        // Clear localStorage after navigation
+        setTimeout(() => {
+          localStorage.removeItem("guest_session");
+        }, 100);
+        return;
+      } else {
+        // Still within grace window - set timeout for grace expiry
+        const graceTimeout = setTimeout(() => {
+          const context = {
+            wasInChat: location.pathname.includes('/chat'),
+            wasMatching: location.pathname === '/matching',
+            timestamp: Date.now()
+          };
+          
+          navigate("/session-expired", { state: context, replace: true });
+          
+          setTimeout(() => {
+            localStorage.removeItem("guest_session");
+          }, 100);
+        }, timeUntilGraceExpiry);
+
+        return () => clearTimeout(graceTimeout);
+      }
     }
+
+    // Reset grace window reference if session is still valid
+    graceExpiryRef.current = null;
 
     // Set timeout to handle expiry
     const expiryTimeout = setTimeout(() => {
-      toast.error("Your session has expired");
-      localStorage.removeItem("conversely_session");
-      navigate("/", { replace: true });
+      graceExpiryRef.current = Date.now() + GRACE_WINDOW_MS;
+      
+      const context = {
+        wasInChat: location.pathname.includes('/chat'),
+        wasMatching: location.pathname === '/matching',
+        timestamp: Date.now()
+      };
+      
+      navigate("/session-expired", { state: context, replace: true });
+      
+      setTimeout(() => {
+        localStorage.removeItem("guest_session");
+      }, 100);
     }, timeUntilExpiry);
-
-    // Warn 2 minutes before expiry
-    const warningTime = timeUntilExpiry - 2 * 60 * 1000;
-    const warningTimeout = warningTime > 0 
-      ? setTimeout(() => {
-          toast.warning("Your session will expire in 2 minutes");
-        }, warningTime)
-      : null;
 
     return () => {
       clearTimeout(expiryTimeout);
-      if (warningTimeout) clearTimeout(warningTimeout);
     };
-  }, [expiresAt, navigate]);
+  }, [expiresAt, navigate, location.pathname]);
 }

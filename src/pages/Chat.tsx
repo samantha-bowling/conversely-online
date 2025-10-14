@@ -21,6 +21,8 @@ import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
 import { useSessionExpiry } from "@/hooks/useSessionExpiry";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { logNetworkEvent } from "@/lib/network-telemetry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -88,6 +90,9 @@ const Chat = () => {
     { id: session?.id || "", name: session?.username || "Anonymous" }
   );
 
+  // Network status tracking
+  const { networkStatus: networkOnlineStatus, isVisible } = useNetworkStatus();
+
   // ============================================================================
   // ✅ Heartbeat System for Partner Disconnect Detection
   // Sends heartbeat every 15s to allow partner to detect disconnect within ~30s
@@ -105,9 +110,9 @@ const Chat = () => {
         return;
       }
 
-      // ✅ Skip if offline to prevent error spam
-      if (!navigator.onLine) {
-        console.log('[Chat] Skipping heartbeat - offline');
+      // ✅ Skip if offline or not visible to prevent error spam
+      if (networkOnlineStatus === 'offline' || !isVisible) {
+        console.log('[Chat] Skipping heartbeat - offline or not visible');
         return;
       }
 
@@ -119,12 +124,20 @@ const Chat = () => {
 
         if (error) {
           console.error('[Chat] Heartbeat error:', error);
+          logNetworkEvent('offline', { 
+            component: 'chat',
+            reason: 'heartbeat_error' 
+          });
         } else {
           lastSentRef.current = Date.now();
           console.log('[Chat] Heartbeat sent');
         }
       } catch (err) {
         console.error('[Chat] Heartbeat failed:', err);
+        logNetworkEvent('offline', { 
+          component: 'chat',
+          reason: 'heartbeat_failed' 
+        });
       }
     };
 
@@ -143,7 +156,7 @@ const Chat = () => {
       // Send final heartbeat on unmount
       sendHeartbeat();
     };
-  }, [session?.id, roomStatus]);
+  }, [session?.id, roomStatus, networkOnlineStatus, isVisible]);
 
   // Visual viewport footer adjustment for iOS Safari
   useEffect(() => {

@@ -11,6 +11,8 @@ import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
 import { HEARTBEAT_INTERVAL_MS } from "@/config/heartbeat";
 import type { MatchOppositeResponse, ActivityLevel } from '@/types';
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { logNetworkEvent } from "@/lib/network-telemetry";
 
 const Matching = () => {
   const navigate = useNavigate();
@@ -29,6 +31,9 @@ const Matching = () => {
   const setupStartTimeRef = useRef<number>(0);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const presenceChannelRef = useRef<any>(null);
+
+  // Network status tracking
+  const { networkStatus, isVisible } = useNetworkStatus();
 
   // Hybrid presence system: Realtime channel + SQL heartbeat
   useEffect(() => {
@@ -82,7 +87,13 @@ const Matching = () => {
         presenceChannelRef.current = channel;
 
         // 3. Start SQL heartbeat fallback (using centralized constant)
-        heartbeatIntervalRef.current = setInterval(async () => {
+        const sendHeartbeat = async () => {
+          // Skip if offline or not visible to conserve resources
+          if (networkStatus === 'offline' || !isVisible) {
+            console.log('[Heartbeat] Skipped - offline or not visible');
+            return;
+          }
+
           try {
             await supabase
               .from('guest_sessions')
@@ -91,8 +102,14 @@ const Matching = () => {
             console.log('[Heartbeat] Sent at', new Date().toISOString());
           } catch (error) {
             console.error('[Heartbeat] Error:', error);
+            logNetworkEvent('offline', { 
+              component: 'matching',
+              reason: 'heartbeat_failed' 
+            });
           }
-        }, HEARTBEAT_INTERVAL_MS);
+        };
+
+        heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
         // ✅ SIGNAL READY - All async operations complete
         if (!cancelled) {

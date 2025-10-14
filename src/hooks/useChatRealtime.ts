@@ -8,6 +8,8 @@ import { handleError } from "@/lib/error-handler";
 import { ERROR_MESSAGES, STATUS_MESSAGES, TIMING } from "@/config/constants";
 import type { GetRoomDataResponse, MessagePayload } from "@/types";
 import { useEphemeralMessages } from "./useEphemeralMessages";
+import { useNetworkStatus } from "./useNetworkStatus";
+import { logNetworkEvent } from "@/lib/network-telemetry";
 
 export type ConnectionStatus = "connected" | "reconnecting" | "offline" | "partner_disconnected";
 
@@ -79,6 +81,10 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
   const maxRetryDelay = 10000;
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
+  const shouldReconnect = useRef(true);
+
+  // Network status tracking
+  const { networkStatus, isVisible, reconnectTrigger } = useNetworkStatus();
 
   // Use consolidated timer hook for message expiration
   useEphemeralMessages({ messages, setMessages });
@@ -303,6 +309,8 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
           console.log(`[Realtime ${subTimestamp}] ✅ Successfully subscribed to consolidated channel`);
           setConnectionStatus('connected');
           retryDelayRef.current = 1000; // Reset retry delay on success
+          shouldReconnect.current = false; // Reset reconnect flag
+          logNetworkEvent('reconnected', { component: 'chat_realtime' });
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
             retryTimeoutRef.current = null;
@@ -310,8 +318,10 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
         } else if (status === 'CHANNEL_ERROR') {
           console.error(`[Realtime ${subTimestamp}] ⚠️ Channel error - retrying in ${retryDelayRef.current}ms`, err);
           setConnectionStatus('offline');
+          shouldReconnect.current = true;
+          logNetworkEvent('offline', { component: 'chat_realtime' });
           
-          // Exponential backoff retry
+          // Exponential backoff retry (separate from network debounce)
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
           }
@@ -328,6 +338,8 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
         } else if (status === 'CLOSED') {
           console.log(`[Realtime ${subTimestamp}] Channel closed`);
           setConnectionStatus('reconnecting');
+          shouldReconnect.current = true;
+          logNetworkEvent('reconnecting', { component: 'chat_realtime' });
         }
 
         if (err) {
@@ -372,6 +384,27 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
       isSubscribedRef.current = false;
     };
   }, [roomId, sessionId]);
+
+  // ============================================================================
+  // ✅ Network-aware reconnect coordination
+  // Triggers manual reconnect when network returns online (debounced)
+  // ============================================================================
+  useEffect(() => {
+    if (networkStatus === 'online' && shouldReconnect.current && isVisible) {
+      console.log('[Realtime] Network restored, triggering reconnect');
+      shouldReconnect.current = false;
+      logNetworkEvent('reconnecting', { 
+        component: 'chat_realtime',
+        trigger: 'network_restored' 
+      });
+      // Force channel resubscription
+      if (roomId && sessionId) {
+        isSubscribedRef.current = false;
+      }
+    } else if (networkStatus === 'offline') {
+      shouldReconnect.current = true;
+    }
+  }, [networkStatus, reconnectTrigger, isVisible, roomId, sessionId]);
 
   // ============================================================================
   // ✅ Polling fallback with heartbeat-based disconnect detection

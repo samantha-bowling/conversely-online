@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     // Look up guest session by user_id
     const { data: session, error: sessionError } = await supabase
       .from('guest_sessions')
-      .select('*')
+      .select('id, username, avatar, expires_at, is_test, reputation_score, quick_exits, last_matched_session_id, last_matched_at, next_match_at, is_searching, last_heartbeat_at, times_blocked, last_quick_exit, created_at')
       .eq('user_id', user.id)
       .single();
 

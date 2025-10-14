@@ -72,9 +72,10 @@ Deno.serve(async (req) => {
     }
 
     // Look up guest session by user_id
+    // Note: user_id is included here for self-match prevention logic, but never returned to clients
     const { data: sessionData, error: sessionError } = await supabase
       .from('guest_sessions')
-      .select('*')
+      .select('id, username, avatar, expires_at, is_test, reputation_score, quick_exits, last_matched_session_id, last_matched_at, next_match_at, is_searching, last_heartbeat_at, times_blocked, last_quick_exit, created_at, user_id')
       .eq('user_id', user.id)
       .single();
 
@@ -273,6 +274,7 @@ Deno.serve(async (req) => {
       }
 
       // Check if potential match is a serial troll or same user
+      // Note: user_id is legitimately needed here to prevent self-matching
       const { data: otherSession } = await supabase
         .from('guest_sessions')
         .select('times_blocked, user_id')

@@ -641,7 +641,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                 {captchaExecuting ? 'Verifying...' : 'Preparing your session...'}
               </span>
             ) : (
-              "Let's Get Started"
+              "Continue to Survey"
             )}
           </Button>
         </div>

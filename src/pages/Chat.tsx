@@ -599,8 +599,10 @@ const Chat = () => {
           ) : (
             <>
               {partnerTyping && (
-                <div className="text-sm text-muted-foreground mb-3 px-1 py-2 animate-pulse" aria-live="polite" role="status">
-                  {partnerUsername} is typing...
+                <div className="max-w-4xl mx-auto">
+                  <div className="text-sm text-muted-foreground mb-3 py-2 animate-pulse" aria-live="polite" role="status">
+                    {partnerUsername} is typing...
+                  </div>
                 </div>
               )}
               <ChatInput

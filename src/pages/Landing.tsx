@@ -92,7 +92,7 @@ const Landing = () => {
 
         <div className="pt-8 space-y-4">
           <ConversationButton variant="primary" onClick={handleStartClick}>
-            Start a Conversation
+            Let's Get Started
           </ConversationButton>
 
           {!activityLevel ? (

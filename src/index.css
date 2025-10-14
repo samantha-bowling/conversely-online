@@ -243,12 +243,17 @@
 @media (max-width: 768px) {
   #root {
     min-height: 100vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    /* Removed overflow-y: auto to prevent nested scroll conflict */
   }
 
   /* Ensures space for keyboard when input focused */
   input:focus {
     scroll-margin-bottom: 120px;
+  }
+  
+  /* Prevent iOS Safari pull-to-refresh on main chat area */
+  main {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
 }

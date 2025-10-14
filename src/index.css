@@ -238,3 +238,17 @@
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
 }
+
+/* Mobile keyboard handling - improved approach */
+@media (max-width: 768px) {
+  #root {
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensures space for keyboard when input focused */
+  input:focus {
+    scroll-margin-bottom: 120px;
+  }
+}

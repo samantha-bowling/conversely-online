@@ -30,6 +30,33 @@ export const ChatInput = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // Smart keyboard-aware scroll with visualViewport API
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const handleFocus = () => {
+      // Use visualViewport to detect actual keyboard height
+      const keyboardOffset = window.visualViewport?.height
+        ? window.innerHeight - window.visualViewport.height
+        : 0;
+      
+      // Adaptive timing based on keyboard presence
+      const delay = keyboardOffset > 0 ? 250 : 300;
+      
+      setTimeout(() => {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Additional scroll if keyboard detected
+        if (keyboardOffset > 0) {
+          window.scrollBy(0, keyboardOffset);
+        }
+      }, delay);
+    };
+
+    input.addEventListener('focus', handleFocus);
+    return () => input.removeEventListener('focus', handleFocus);
+  }, []);
+
   const handleSend = () => {
     if (!hasSentMessage && !canSendFirstMessage) {
       toast.error("Please wait a moment before sending your first message...");

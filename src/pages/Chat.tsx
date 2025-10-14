@@ -144,6 +144,25 @@ const Chat = () => {
     };
   }, [session?.id, roomStatus]);
 
+  // Visual viewport footer adjustment for iOS Safari
+  useEffect(() => {
+    const footer = document.querySelector('footer');
+    if (!footer || !window.visualViewport) return;
+
+    const adjustFooter = () => {
+      const offset = window.innerHeight - window.visualViewport.height;
+      footer.style.bottom = offset > 0 ? `${offset}px` : '0px';
+    };
+
+    window.visualViewport.addEventListener('resize', adjustFooter);
+    window.visualViewport.addEventListener('scroll', adjustFooter);
+    
+    return () => {
+      window.visualViewport.removeEventListener('resize', adjustFooter);
+      window.visualViewport.removeEventListener('scroll', adjustFooter);
+    };
+  }, []);
+
   // Send final heartbeat attempt on tab close (Defense in Depth)
   useEffect(() => {
     if (!session?.id) return;
@@ -445,7 +464,7 @@ const Chat = () => {
   }, [roomStatus, isUserInitiatedEnd, showPostChatDialog, showReflectionDialog, showReflectionFromPartnerLeft]);
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Skip to main content link */}
       <a 
         href="#message-input" 
@@ -553,8 +572,8 @@ const Chat = () => {
 
       {/* Messages */}
       <main 
-        className="flex-1 overflow-y-auto" 
-        role="main" 
+        className="flex-1 overflow-y-auto touch-pan-y" 
+        role="main"
         aria-label="Chat messages"
         aria-live="polite"
         aria-atomic="false"
@@ -590,7 +609,7 @@ const Chat = () => {
       </main>
 
       {/* Input */}
-      <footer className="border-t border-border bg-card" role="contentinfo">
+      <footer className="sticky bottom-0 border-t border-border bg-card z-10" role="contentinfo">
         <div className="p-4">
           {roomStatus === "ended" ? (
             <div className="text-center text-muted-foreground py-4">

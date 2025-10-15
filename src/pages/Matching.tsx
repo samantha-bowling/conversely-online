@@ -31,6 +31,7 @@ const Matching = () => {
   const setupStartTimeRef = useRef<number>(0);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const presenceChannelRef = useRef<any>(null);
+  const mountedRef = useRef(true);
 
   // Network status tracking
   const { networkStatus, isVisible } = useNetworkStatus();
@@ -39,6 +40,12 @@ const Matching = () => {
   useEffect(() => {
     console.log(`[Heartbeat] Visibility changed: ${isVisible ? 'visible' : 'hidden'}`);
   }, [isVisible]);
+
+  // Track component mount state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Hybrid presence system: Realtime channel + SQL heartbeat
   useEffect(() => {
@@ -204,7 +211,12 @@ const Matching = () => {
 
     const startMatching = async () => {
       if (isMatching) {
-        console.log('[Matching] Already in progress, skipping');
+        console.log('[Matching] Already in progress, skipping', {
+          sessionId: session?.id,
+          presenceReady,
+          matchAttempts,
+          timestamp: Date.now()
+        });
         return;
       }
 
@@ -232,11 +244,15 @@ const Matching = () => {
           setStatus('cooldown');
           setWaitSeconds(data.wait_seconds || 0);
           setStatusAnnouncement(`Please wait ${data.wait_seconds || 0} seconds before trying again`);
+          setIsMatching(false);
+          return;
         } else if (data.status === 'rate_limited') {
           setStatus('rate-limited');
           const waitTime = data.retry_after || 60;
           setWaitSeconds(waitTime);
           setStatusAnnouncement(`Too many requests. Try again in ${waitTime} seconds`);
+          setIsMatching(false);
+          return;
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
           setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
@@ -264,18 +280,24 @@ const Matching = () => {
           setStatusAnnouncement(STATUS_MESSAGES.NO_MATCH);
         }
       } catch (error) {
+        console.error('[Matching] Error during match attempt', error);
         handleError(error, { description: ERROR_MESSAGES.MATCH_ERROR });
         setStatus("not-found");
+        setIsMatching(false);
       } finally {
-        // Debounce cooldown (prevent rapid re-calls)
-        setTimeout(() => setIsMatching(false), 1000);
+        // Debounce cooldown (prevent rapid re-calls) - only if still mounted
+        if (mountedRef.current) {
+          setTimeout(() => {
+            if (mountedRef.current) setIsMatching(false);
+          }, 1000);
+        }
       }
     };
 
     // Start matching after a brief delay to ensure presence fully propagated
     const timeout = setTimeout(startMatching, 500);
     return () => clearTimeout(timeout);
-  }, [presenceReady, session, navigate, matchAttempts, isMatching]);
+  }, [presenceReady, session, navigate, matchAttempts]);
 
   // Countdown timer effect - timestamp-based for resilience to tab throttling
   useEffect(() => {

@@ -34,6 +34,11 @@ const Matching = () => {
 
   // Network status tracking
   const { networkStatus, isVisible } = useNetworkStatus();
+  
+  // Debug log for visibility changes
+  useEffect(() => {
+    console.log(`[Heartbeat] Visibility changed: ${isVisible ? 'visible' : 'hidden'}`);
+  }, [isVisible]);
 
   // Hybrid presence system: Realtime channel + SQL heartbeat
   useEffect(() => {
@@ -88,9 +93,9 @@ const Matching = () => {
 
         // 3. Start SQL heartbeat fallback (using centralized constant)
         const sendHeartbeat = async () => {
-          // Skip if offline or not visible to conserve resources
-          if (networkStatus === 'offline' || !isVisible) {
-            console.log('[Heartbeat] Skipped - offline or not visible');
+          // Skip if offline to conserve resources
+          if (networkStatus === 'offline') {
+            console.log('[Heartbeat] Skipped - offline');
             return;
           }
 

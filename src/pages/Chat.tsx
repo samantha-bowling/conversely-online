@@ -92,6 +92,11 @@ const Chat = () => {
 
   // Network status tracking
   const { networkStatus: networkOnlineStatus, isVisible } = useNetworkStatus();
+  
+  // Debug log for visibility changes
+  useEffect(() => {
+    console.log(`[Heartbeat] Visibility changed: ${isVisible ? 'visible' : 'hidden'}`);
+  }, [isVisible]);
 
   // ============================================================================
   // ✅ Heartbeat System for Partner Disconnect Detection
@@ -110,9 +115,9 @@ const Chat = () => {
         return;
       }
 
-      // ✅ Skip if offline or not visible to prevent error spam
-      if (networkOnlineStatus === 'offline' || !isVisible) {
-        console.log('[Chat] Skipping heartbeat - offline or not visible');
+      // ✅ Skip if offline to prevent error spam
+      if (networkOnlineStatus === 'offline') {
+        console.log('[Chat] Skipping heartbeat - offline');
         return;
       }
 

@@ -9,6 +9,7 @@
 /**
  * Client sends heartbeat every 15 seconds
  * Used in: Matching.tsx, Chat.tsx
+ * Note: Continues in background tabs (only stops when truly offline)
  */
 export const HEARTBEAT_INTERVAL_MS = 15000;
 

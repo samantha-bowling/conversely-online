@@ -249,14 +249,33 @@ Deno.serve(async (req) => {
       .eq('id', session_id)
       .single();
 
-    // Apply 30-minute cooldown on recent match (skip for test mode)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    if (!session.is_test && // Skip cooldown for test sessions
-        mySession?.last_matched_session_id && 
-        mySession.last_matched_at && 
-        new Date(mySession.last_matched_at) > new Date(thirtyMinutesAgo)) {
-      blockedIds.add(mySession.last_matched_session_id);
-      console.log(`Excluding recent match from pool: ${mySession.last_matched_session_id}`);
+
+    // RACE CONDITION PROTECTION: Check if we're already in a room with recent match
+    if (mySession?.last_matched_session_id) {
+      const { data: existingRoomWithRecentMatch } = await supabase
+        .from('chat_rooms')
+        .select('id, status')
+        .eq('status', 'active')
+        .or(`and(session_a.eq.${session_id},session_b.eq.${mySession.last_matched_session_id}),and(session_a.eq.${mySession.last_matched_session_id},session_b.eq.${session_id})`)
+        .maybeSingle();
+      
+      if (existingRoomWithRecentMatch) {
+        // Race condition: partner already created room with us
+        console.log(`[Race][${session_id}] Found existing room with ${mySession.last_matched_session_id} -> ${existingRoomWithRecentMatch.id}`);
+        return new Response(
+          JSON.stringify({ status: 'match_found', room_id: existingRoomWithRecentMatch.id }),
+          { headers: securityHeaders, status: 200 }
+        );
+      }
+      
+      // Only apply cooldown if NOT in test mode AND within 30-min window
+      if (!session.is_test && 
+          mySession.last_matched_at && 
+          new Date(mySession.last_matched_at) > new Date(thirtyMinutesAgo)) {
+        blockedIds.add(mySession.last_matched_session_id);
+        console.log(`[Cooldown] Excluding recent match from pool: ${mySession.last_matched_session_id}`);
+      }
     }
 
     // Group answers by session

@@ -1,0 +1,14 @@
+# Incident Post-Mortem Reports
+
+This directory contains post-mortem documentation for production incidents.
+
+**File Naming Convention:** `YYYY-MM-DD-incident-short-title.md`
+
+**Example:** `2025-10-15-matching-system-outage.md`
+
+**Purpose:** 
+- Historical record of incidents
+- Learning resource for team
+- Reference for preventing repeat issues
+
+See `docs/INCIDENT_RESPONSE.md` for post-mortem template.

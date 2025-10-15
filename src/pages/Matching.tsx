@@ -240,7 +240,7 @@ const Matching = () => {
         } else if (data.status === 'match_found' && data.room_id) {
           setStatus("found");
           setStatusAnnouncement(STATUS_MESSAGES.MATCH_FOUND);
-          console.log('[Matching] ✅ Match found, redirecting to room', data.room_id);
+          console.log('[Matching] ✅ Match found, redirecting to room', data.room_id, 'session:', session?.id);
           setTimeout(() => {
             navigate(`/chat/${data.room_id}`);
           }, TIMING.MATCH_FOUND_REDIRECT);

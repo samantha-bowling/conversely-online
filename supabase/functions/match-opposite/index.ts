@@ -366,8 +366,36 @@ Deno.serve(async (req) => {
     }
 
     if (result.status === 'session_b_busy') {
-      // Best match got taken by another request - return no match
-      console.log('Race condition: best match already busy:', result.room_id);
+      // Best match is already in a room - check if it's with us
+      console.log(
+        `[Race] session_b_busy detected. Checking existing room for (${session_id} <-> ${bestMatch})`
+      );
+      
+      const { data: existingRoom, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .in('status', ['active', 'pending'])
+        .or(`and(session_a.eq.${session_id},session_b.eq.${bestMatch}),and(session_a.eq.${bestMatch},session_b.eq.${session_id})`)
+        .maybeSingle();
+      
+      if (!roomError && existingRoom) {
+        // Partner is matched with US - return the room
+        console.log(
+          `[Race] Resolved: Found existing room ${existingRoom.id} for (${session_id} <-> ${bestMatch})`
+        );
+        return new Response(
+          JSON.stringify({
+            status: 'match_found',
+            room_id: existingRoom.id,
+          }),
+          { headers: securityHeaders, status: 200 }
+        );
+      }
+      
+      // Partner is matched with someone else - genuinely no match
+      console.log(
+        `[Race] Confirmed: ${bestMatch} is busy with different partner (room ${result.room_id})`
+      );
       return new Response(
         JSON.stringify({ status: 'no_match' }),
         { headers: securityHeaders, status: 200 }

@@ -509,8 +509,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      You must be at least 16 years old to use Conversely. 
-                      If you are under 16, please close this page.
+                      You must be at least 16 years old to use Conversely.
                     </AlertDescription>
                   </Alert>
                 )}

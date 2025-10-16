@@ -337,6 +337,17 @@ const Chat = () => {
       return;
     }
 
+    // Sanity check: Ensure Supabase functions are initialized
+    if (!supabase.functions) {
+      console.error('[Reflection] Supabase functions not initialized');
+      if (isMounted.current) {
+        toast.error('Unable to submit feedback. Please try again.');
+      }
+      setShowReflectionDialog(false);
+      setShowPostChatDialog(true);
+      return;
+    }
+
     try {
       const { error } = await supabase.functions.invoke('submit-reflection', {
         body: {
@@ -347,19 +358,39 @@ const Chat = () => {
       });
 
       if (error) {
-        console.error('Failed to submit reflection:', error);
-        // Don't block navigation on reflection submission failure
+        if (import.meta.env.MODE === 'development') {
+          console.error('[Telemetry] reflection_submit_failed', {
+            room_id: roomId,
+            error: error.message,
+            has_rating: rating !== null,
+            has_feedback: !!feedback.trim()
+          });
+        }
+        if (isMounted.current) {
+          toast.error('Failed to save feedback');
+        }
       } else {
-        // Guard toast timing - only show if component is still mounted
+        if (import.meta.env.MODE === 'development') {
+          console.log('[Telemetry] reflection_submitted', {
+            room_id: roomId,
+            rating,
+            has_feedback: !!feedback.trim()
+          });
+        }
         if (isMounted.current) {
           toast.success('Thank you for your feedback!');
         }
       }
     } catch (error) {
-      console.error('Error submitting reflection:', error);
+      if (import.meta.env.MODE === 'development') {
+        console.error('[Telemetry] reflection_unexpected_error', {
+          room_id: roomId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     } finally {
       setShowReflectionDialog(false);
-      setShowPostChatDialog(true); // Show modal instead of direct navigation
+      setShowPostChatDialog(true);
     }
   };
 
@@ -381,6 +412,17 @@ const Chat = () => {
       return;
     }
 
+    // Sanity check: Ensure Supabase functions are initialized
+    if (!supabase.functions) {
+      console.error('[Reflection] Supabase functions not initialized');
+      if (isMounted.current) {
+        toast.error('Unable to submit feedback. Please try again.');
+      }
+      setShowReflectionFromPartnerLeft(false);
+      setShowPostChatDialog(true);
+      return;
+    }
+
     try {
       const { error } = await supabase.functions.invoke('submit-reflection', {
         body: {
@@ -391,18 +433,38 @@ const Chat = () => {
       });
 
       if (error) {
-        console.error('Failed to submit reflection:', error);
+        if (import.meta.env.MODE === 'development') {
+          console.error('[Telemetry] reflection_submit_failed', {
+            room_id: roomId,
+            error: error.message,
+            has_rating: rating !== null,
+            has_feedback: !!feedback.trim()
+          });
+        }
+        if (isMounted.current) {
+          toast.error('Failed to save feedback');
+        }
       } else {
-        // Guard toast timing - only show if component is still mounted
+        if (import.meta.env.MODE === 'development') {
+          console.log('[Telemetry] reflection_submitted', {
+            room_id: roomId,
+            rating,
+            has_feedback: !!feedback.trim()
+          });
+        }
         if (isMounted.current) {
           toast.success('Thank you for your feedback!');
         }
       }
     } catch (error) {
-      console.error('Error submitting reflection:', error);
+      if (import.meta.env.MODE === 'development') {
+        console.error('[Telemetry] reflection_unexpected_error', {
+          room_id: roomId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     } finally {
       setShowReflectionFromPartnerLeft(false);
-      // Return to partner-left dialog to let user choose next action
       setShowPostChatDialog(true);
     }
   };

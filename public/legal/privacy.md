@@ -195,11 +195,39 @@ Conversely does not engage in data sales, advertising, or cross-context behavior
 
 ### 7.6 Exercising Your Rights
 
-To exercise these rights:
+**Self-Service Privacy Portal (Recommended)**
+
+For the fastest response, use our real-time self-service portal at [/privacy-requests](/privacy-requests):
+
+✅ **While your session is active (within 24 hours):**
+- **Export your data** — Download all your session data, survey responses, and conversation metadata instantly
+- **Edit survey answers** — Correct or update your survey responses
+- **Delete your data** — Permanently remove your session and all associated data immediately
+- **Download transcripts** — Export conversation history (during active chats only)
+
+⚠️ **Important Timing Requirement:**  
+Due to our privacy-by-design architecture, data access is only available **while your session is active** (within 24 hours of creation). After expiry:
+- Messages are already deleted (2-minute auto-expiry)
+- Sessions and survey data are permanently removed
+- No recovery is possible—even by our administrators
+
+**Why Real-Time Access?**  
+Conversely uses ephemeral sessions (no accounts, no long-term storage) to maximize your privacy. This means:
+- No persistent user profiles to access
+- No email or login credentials to verify
+- Data disappears automatically after 24 hours
+
+**Legal Basis:** Our real-time access model is grounded in legitimate interests (GDPR Art. 6(1)(f)) — providing immediate data access while your session is active serves your privacy rights more effectively than email-based requests that could take 30 days.
+
+**Email Fallback (For Edge Cases)**
+
+If you cannot access the self-service portal:
 1. Email hello@conversely.online with "Privacy Request" in the subject
 2. Include your session timestamp or approximate usage date
 3. We will respond within 30 days (or as required by law)
 4. We may request verification to prevent unauthorized access
+
+**Note:** If your session has already expired (24+ hours old), most data is already deleted and cannot be recovered.
 
 ## 8. Children's Privacy (Under 16)
 

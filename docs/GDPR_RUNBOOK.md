@@ -1,542 +1,628 @@
-# GDPR Compliance Runbook
+# GDPR Compliance Operational Runbook
 
-**Purpose:** Operational guide for handling edge cases, regulatory inquiries, and data subject requests outside the self-service portal.
-
-**Audience:** Compliance Officer, Support Team, Engineering  
-**Last Updated:** October 17, 2025
+**Version:** 1.0  
+**Last Updated:** October 17, 2025  
+**Owner:** Compliance Officer / DPO  
+**Audience:** Support Team, Engineering, Legal
 
 ---
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Edge Case Scenarios](#edge-case-scenarios)
-3. [Email Response Templates](#email-response-templates)
-4. [Audit Trail Queries](#audit-trail-queries)
-5. [Incident Response](#incident-response)
-6. [Supervisory Authority Inquiries](#supervisory-authority-inquiries)
-7. [Escalation Paths](#escalation-paths)
+1. [Overview](#1-overview)
+2. [Edge Case Scenarios](#2-edge-case-scenarios)
+3. [Email Response Templates](#3-email-response-templates)
+4. [Audit Trail Queries](#4-audit-trail-queries)
+5. [Incident Response](#5-incident-response)
+6. [Supervisory Authority Inquiries](#6-supervisory-authority-inquiries)
+7. [Escalation Paths](#7-escalation-paths)
+8. [Appendix: Data Retention Summary](#appendix-data-retention-summary)
 
 ---
 
-## Overview
+## 1. Overview
 
-### When to Use This Runbook
+### Purpose
 
-- User emails requesting data after session expiry
-- Technical failures in self-service portal
-- Supervisory authority (DPA) requests
-- Bulk deletion requests (e.g., court order)
-- Audit trail verification for compliance
-- Cascade deletion integrity issues
+This runbook covers operational procedures for handling GDPR edge cases, regulatory inquiries, and data subject requests that fall outside the self-service portal at `/privacy-requests`.
+
+**When to use this runbook:**
+- User emails after session expiry (24+ hours)
+- User claims they cannot access self-service portal
+- DPA (Data Protection Authority) requests
+- Audit trail verification
+- Technical failures in automated deletion
 
 ### Key Principles
 
-1. **Default to Self-Service**: Always direct active users to `/privacy-requests`
-2. **Transparency**: Clearly explain ephemeral data model limitations
-3. **Audit Everything**: Log all manual interventions in `maintenance_logs`
-4. **Speed**: Respond to inquiries within 72 hours (GDPR requirement)
-5. **Documentation**: Keep records of all data subject requests for 3 years
+1. **Self-Service First:** Always direct users to `/privacy-requests` if their session is active
+2. **Transparency:** Clearly explain what data exists, what's already deleted, and why
+3. **Audit Everything:** Log all manual interventions in `maintenance_logs` table
+4. **Prompt Response:** Acknowledge requests within 72 hours, resolve within 30 days
+5. **Document Retention:** Keep records of all GDPR requests for 3 years
 
 ---
 
-## Edge Case Scenarios
+## 2. Edge Case Scenarios
 
-### Scenario 1: User Emails After Session Expiry
+### Scenario A: User Emails After Session Expiry
 
-**Situation:** User contacts hello@conversely.online claiming they want to delete data from a past session.
+**Context:** User requests data export/deletion, but their session expired 24+ hours ago.
 
-**Response:**
+**Response Steps:**
 
-1. Check session status:
-   ```sql
-   SELECT id, user_id, created_at, expires_at
-   FROM guest_sessions
-   WHERE user_id = '<user_id_from_auth>';
-   ```
-
-2. If `expires_at < now()`:
-   - Data has already been automatically deleted
-   - Use **Template A** (see below)
-
-3. If session still active:
-   - Direct user to self-service portal
-   - Use **Template B** (see below)
-
-**Template A: Data Already Deleted**
-
-```
-Subject: Re: Data Deletion Request
-
-Dear User,
-
-Thank you for contacting us regarding your data deletion request.
-
-Our system shows that your session expired on [EXPIRY_DATE]. Per our data retention policy, all session data (survey answers, messages, reflections) are automatically deleted within 24 hours of session creation.
-
-Your data was permanently removed on [EXPIRY_DATE] and cannot be recovered. No further action is required.
-
-For transparency, our ephemeral architecture is designed to minimize data retention and comply with GDPR principles of storage limitation (Art. 5(1)(e)).
-
-If you have any questions, please reply to this email.
-
-Best regards,
-Conversely Privacy Team
-```
-
----
-
-### Scenario 2: User Claims Identity After Deletion
-
-**Situation:** User provides session details (username, timestamp) but data is no longer available.
-
-**Response:**
-
-1. Verify deletion timestamp:
-   ```sql
-   SELECT event_metadata
-   FROM maintenance_logs
-   WHERE job_name = 'user_data_deleted'
-     AND event_metadata->>'session_id' = '<session_id>'
-   ORDER BY created_at DESC
-   LIMIT 1;
-   ```
-
-2. If deletion log exists:
-   - Provide confirmation receipt (see **Template C**)
-
-3. If no deletion log (auto-expiry):
-   - Use **Template A**
-
-**Template C: Deletion Confirmation**
-
-```
-Subject: Re: Data Deletion Confirmation
-
-Dear User,
-
-We confirm that your data deletion request was successfully processed on [DELETION_TIMESTAMP].
-
-Deletion Receipt:
-- Session ID: [SESSION_ID]
-- Deletion Date: [DELETION_TIMESTAMP]
-- Records Deleted:
-  * Survey Answers: [COUNT]
-  * Reflections: [COUNT]
-  * Blocked Users: [COUNT]
-  * Auth Record: 1
-
-Your data has been permanently removed from our systems and cannot be recovered. This deletion complies with GDPR Art. 17 (Right to Erasure).
-
-If you have any questions, please reply to this email.
-
-Best regards,
-Conversely Privacy Team
-```
-
----
-
-### Scenario 3: Technical Failure in Self-Service Portal
-
-**Situation:** User reports error when trying to export/delete data via portal.
-
-**Response:**
-
-1. Check edge function logs:
-   ```bash
-   # View recent export-user-data errors
-   supabase functions logs export-user-data --limit 50
-
-   # View recent delete-user-data errors
-   supabase functions logs delete-user-data --limit 50
-   ```
-
-2. Common failure modes:
-   - **JWT expired mid-request**: User's session expired during request → Use **Template B**
-   - **Rate limit exceeded**: User hit 1 export/10min limit → Ask user to retry in 10 minutes
-   - **Timeout (>10s)**: Database query slow → Investigate performance issue
-
-3. If critical bug:
-   - File incident report (see [Incident Response](#incident-response))
-   - Manually process request (see **Manual Processing** below)
-
-**Manual Processing (Last Resort)**
-
+1. **Verify session expiry** using SQL:
 ```sql
--- ⚠️ ONLY use if self-service portal is broken
+SELECT id, created_at, expires_at, username 
+FROM guest_sessions 
+WHERE expires_at < now() 
+  AND created_at > now() - interval '7 days'
+ORDER BY created_at DESC;
+```
 
--- 1. Verify user identity (check auth logs)
--- 2. Export data manually
+2. **Check if data still exists** (should be 0 rows):
+```sql
+SELECT COUNT(*) FROM guest_sessions WHERE expires_at < now();
+SELECT COUNT(*) FROM messages WHERE expires_at < now();
+```
+
+3. **Send Template A** (see Section 3)
+
+**Expected Outcome:**  
+- User is informed their data was already deleted per retention policy
+- No further action required
+- Log interaction in support ticket system
+
+---
+
+### Scenario B: User Has Active Session but Claims Portal Issues
+
+**Context:** User reports technical errors or cannot access `/privacy-requests`.
+
+**Response Steps:**
+
+1. **Verify session validity:**
+```sql
+SELECT id, username, created_at, expires_at, user_id
+FROM guest_sessions 
+WHERE expires_at > now()
+  AND created_at > now() - interval '2 days'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+2. **Check for recent export/deletion attempts in `maintenance_logs`:**
+```sql
+SELECT * FROM maintenance_logs 
+WHERE job_name IN ('user_data_export', 'user_data_deletion')
+  AND created_at > now() - interval '1 hour'
+ORDER BY created_at DESC;
+```
+
+3. **Common failure modes:**
+   - Session expired between page load and action
+   - JWT token mismatch (user opened multiple tabs)
+   - Rate limit exceeded (5 exports per hour)
+   - Browser cache issues (stale session state)
+
+4. **If session is valid, perform manual processing:**
+
+**Manual Export (if portal fails):**
+```sql
+-- Export user data (replace <session_id>)
 SELECT 
-  gs.id as session_id,
-  gs.username,
-  gs.created_at,
-  gs.expires_at,
-  json_agg(DISTINCT jsonb_build_object(
-    'question_id', sa.question_id,
-    'answer', sa.answer,
-    'created_at', sa.created_at
-  )) as survey_answers,
-  json_agg(DISTINCT jsonb_build_object(
-    'rating', r.rating,
-    'feedback', r.feedback,
-    'created_at', r.created_at
-  )) as reflections
+  gs.id, gs.username, gs.avatar, gs.created_at, gs.expires_at,
+  sa.question_id, sa.answer_id, sa.submitted_at,
+  r.mood_score, r.reflection_text, r.created_at
 FROM guest_sessions gs
 LEFT JOIN survey_answers sa ON sa.session_id = gs.id
 LEFT JOIN reflections r ON r.session_id = gs.id
-WHERE gs.user_id = '<user_id>'
-  AND gs.expires_at > now()
-GROUP BY gs.id;
-
--- 3. Send JSON to user via email (encrypted attachment)
--- 4. Log manual export in maintenance_logs
-INSERT INTO maintenance_logs (job_name, event_metadata)
-VALUES ('user_data_exported', jsonb_build_object(
-  'session_id', '<session_id>',
-  'action_source', 'manual_email',
-  'reason', 'portal_technical_failure'
-));
+WHERE gs.id = '<session_id>';
 ```
 
----
-
-### Scenario 4: Cascade Deletion Failure
-
-**Situation:** User deleted session but orphaned data remains (survey answers, reflections).
-
-**Response:**
-
-1. Verify cascade rules:
-   ```sql
-   -- Check foreign key constraints
-   SELECT conname, conrelid::regclass, confrelid::regclass
-   FROM pg_constraint
-   WHERE confrelid = 'guest_sessions'::regclass
-     AND contype = 'f';
-   ```
-
-2. If orphaned data found:
-   ```sql
-   -- Identify orphaned records
-   SELECT * FROM survey_answers sa
-   WHERE NOT EXISTS (
-     SELECT 1 FROM guest_sessions gs WHERE gs.id = sa.session_id
-   );
-
-   -- Manual cleanup (audit first!)
-   DELETE FROM survey_answers
-   WHERE session_id NOT IN (SELECT id FROM guest_sessions);
-   ```
-
-3. File incident report (see [Incident Response](#incident-response))
-
----
-
-## Email Response Templates
-
-### Template B: Active Session (Redirect to Portal)
-
-```
-Subject: Re: Data Request
-
-Dear User,
-
-Thank you for contacting us regarding your data rights request.
-
-Our records show that your session is still active (expires [EXPIRY_DATE]). For instant data export or deletion, please use our self-service Privacy Requests Portal:
-
-🔗 https://conversely.online/privacy-requests
-
-This portal allows you to:
-- Export all your data in JSON format (instant download)
-- Delete your data permanently (immediate)
-- Edit your survey answers (rectification)
-
-**Why self-service?** Because we don't maintain persistent user accounts, data requests must be made during your active session (24-hour window). The portal verifies your identity via your current session token.
-
-If you experience technical issues with the portal, please reply to this email with:
-- Error message (if any)
-- Timestamp of issue
-- Browser used
-
-Best regards,
-Conversely Privacy Team
-```
-
----
-
-### Template D: Supervisory Authority Inquiry
-
-```
-Subject: Re: GDPR Inquiry [CASE_NUMBER]
-
-Dear [DPA_NAME],
-
-Thank you for your inquiry regarding [USER_IDENTIFIER].
-
-**Data Processing Summary:**
-
-1. **Data Controller**: Conversely, [ADDRESS]
-2. **Legal Basis**: Legitimate interests (GDPR Art. 6(1)(f))
-3. **Data Retention**: Maximum 24 hours (ephemeral sessions)
-4. **Data Categories**:
-   - Session metadata (username, avatar, timestamps)
-   - Survey responses (pre-chat questionnaire)
-   - Conversation messages (expire after 2 minutes)
-   - Post-chat feedback (anonymous reflections)
-
-**Compliance Measures:**
-
-- ✅ Self-service data export portal (Art. 15)
-- ✅ Self-service deletion portal (Art. 17)
-- ✅ Rectification available via survey editing (Art. 16)
-- ✅ Audit trail in maintenance_logs (Art. 30)
-- ✅ Automatic data expiry (privacy by design)
-
-**Audit Trail for [USER_IDENTIFIER]:**
-
-[Attach SQL query results showing export/deletion logs]
-
-**Supporting Documentation:**
-
-- Privacy Policy: https://conversely.online/privacy
-- Data Retention Policy: https://conversely.online/data-retention
-- GDPR Implementation Plan: [Attach docs/GDPR_IMPLEMENTATION_PLAN.md]
-
-If you require additional information, please contact:
-[DPO_NAME]
-[DPO_EMAIL]
-[DPO_PHONE]
-
-Best regards,
-Conversely Compliance Team
-```
-
----
-
-## Audit Trail Queries
-
-### Query 1: Export Requests (Last 30 Days)
-
+**Manual Deletion (if portal fails):**
 ```sql
-SELECT 
-  created_at,
-  event_metadata->>'session_id' as session_id,
-  event_metadata->>'action_source' as source
-FROM maintenance_logs
-WHERE job_name = 'user_data_exported'
+-- Delete session and cascade all data (replace <session_id>)
+DELETE FROM guest_sessions WHERE id = '<session_id>';
+
+-- Verify deletion
+SELECT COUNT(*) FROM guest_sessions WHERE id = '<session_id>';
+SELECT COUNT(*) FROM survey_answers WHERE session_id = '<session_id>';
+SELECT COUNT(*) FROM reflections WHERE session_id = '<session_id>';
+```
+
+5. **Send Template B** with exported data or deletion confirmation
+
+---
+
+### Scenario C: User Claims Identity After Data Deletion
+
+**Context:** User claims data was deleted without their consent or too early.
+
+**Response Steps:**
+
+1. **Check deletion logs:**
+```sql
+SELECT * FROM maintenance_logs 
+WHERE job_name = 'user_data_deletion'
   AND created_at > now() - interval '30 days'
 ORDER BY created_at DESC;
 ```
 
-**Use Case:** Prove user exercised right to access
+2. **Verify deletion was legitimate:**
+   - Was it automated (session expiry)?
+   - Was it user-initiated (self-service portal)?
+   - Was it manual (support request)?
+
+3. **If automated deletion:** Send Template C explaining retention policy
+
+4. **If deletion was erroneous:** Escalate to Level 2 (Compliance Officer)
+
+**Expected Outcome:**  
+- Confirm deletion was lawful and in accordance with retention policy
+- No recovery possible (data is permanently deleted)
+- Offer explanation of automated deletion triggers
 
 ---
 
-### Query 2: Deletion Requests (Last 90 Days)
+### Scenario D: Cascade Deletion Failure
 
+**Context:** Session was deleted but orphaned data remains.
+
+**Detection Query:**
 ```sql
-SELECT 
-  created_at as deletion_timestamp,
-  event_metadata->>'session_id' as session_id,
-  event_metadata->'records_deleted' as records_deleted,
-  event_metadata->>'action_source' as source
-FROM maintenance_logs
-WHERE job_name = 'user_data_deleted'
-  AND created_at > now() - interval '90 days'
-ORDER BY created_at DESC;
+-- Find orphaned survey answers
+SELECT sa.* 
+FROM survey_answers sa 
+LEFT JOIN guest_sessions gs ON gs.id = sa.session_id 
+WHERE gs.id IS NULL;
+
+-- Find orphaned reflections
+SELECT r.* 
+FROM reflections r 
+LEFT JOIN guest_sessions gs ON gs.id = r.session_id 
+WHERE gs.id IS NULL;
+
+-- Find orphaned blocked pairs
+SELECT bp.* 
+FROM blocked_pairs bp 
+LEFT JOIN guest_sessions gs ON gs.id = bp.blocker_session_id 
+WHERE gs.id IS NULL;
 ```
 
-**Use Case:** Deletion confirmation for user or DPA
+**Cleanup Actions:**
+```sql
+-- Delete orphaned survey answers
+DELETE FROM survey_answers 
+WHERE session_id NOT IN (SELECT id FROM guest_sessions);
+
+-- Delete orphaned reflections
+DELETE FROM reflections 
+WHERE session_id NOT IN (SELECT id FROM guest_sessions);
+
+-- Delete orphaned blocked pairs
+DELETE FROM blocked_pairs 
+WHERE blocker_session_id NOT IN (SELECT id FROM guest_sessions)
+   OR blocked_session_id NOT IN (SELECT id FROM guest_sessions);
+```
+
+**Prevention:**  
+- Verify CASCADE constraints are properly configured in database schema
+- Monitor orphaned data daily using detection queries
 
 ---
 
-### Query 3: Failed Deletion Attempts
+## 3. Email Response Templates
+
+### Template A: Session Already Expired (No Data Exists)
+
+**Subject:** Re: Privacy Request — Session Expired (No Data Available)
+
+```
+Hello,
+
+Thank you for contacting Conversely regarding your privacy request.
+
+We checked our database and found that your session expired more than 24 hours ago. In accordance with our Data Retention Policy (https://conversely.online/data-retention), all data associated with expired sessions is automatically deleted.
+
+**What has been deleted:**
+✅ Your session record (username, avatar, session ID)
+✅ Survey responses you submitted
+✅ Any reflections or post-chat feedback
+✅ All messages (auto-deleted 2 minutes after sending)
+
+**Current status:**
+No recoverable data exists in our systems. Your information has been permanently removed as designed.
+
+**Why this happened:**
+Conversely uses ephemeral sessions (24-hour lifespan) to maximize privacy. We do not retain user data beyond this window, and we cannot recover deleted data—even upon request.
+
+If you have questions about our retention practices, please see:
+- Privacy Policy: https://conversely.online/privacy
+- Data Retention Policy: https://conversely.online/data-retention
+
+Best regards,  
+Conversely Support Team  
+hello@conversely.online
+```
+
+---
+
+### Template B: Active Session — Direct to Portal
+
+**Subject:** Re: Privacy Request — Please Use Self-Service Portal
+
+```
+Hello,
+
+Thank you for contacting us. We found that your Conversely session is still active.
+
+**For the fastest response, please use our self-service privacy portal:**
+
+🔗 https://conversely.online/privacy-requests
+
+**What you can do in the portal:**
+✅ Export your data (session info, survey answers, conversation metadata)
+✅ Edit your survey responses
+✅ Delete your data immediately
+✅ Download conversation transcripts (if in an active chat)
+
+**Why use the portal instead of email?**
+- Instant action (no waiting for support)
+- No identity verification delays
+- Real-time data access while session is active
+
+**Important timing:**
+Your session expires on [EXPIRY_TIMESTAMP]. After this time:
+- Data is automatically deleted
+- No recovery is possible
+- Portal access will no longer work
+
+If you experience technical issues with the portal, please reply to this email with details.
+
+Best regards,  
+Conversely Support Team  
+hello@conversely.online
+```
+
+---
+
+### Template C: Deletion Was Legitimate (Automated Cleanup)
+
+**Subject:** Re: Data Deletion Inquiry — Automated Retention Policy
+
+```
+Hello,
+
+Thank you for contacting us about your data deletion concern.
+
+Our records indicate that your data was deleted as part of our automated retention policy, not by manual intervention or error.
+
+**What triggered the deletion:**
+- Your session reached its 24-hour expiration deadline
+- Our automated cleanup system (scheduled job) removed expired data
+- This is standard behavior designed to protect user privacy
+
+**Data retention timeline:**
+- Messages: Auto-deleted 2 minutes after sending
+- Sessions: Auto-deleted 24 hours after creation
+- Survey answers, reflections, blocked pairs: Deleted when session expires
+
+**Legal basis:**
+This retention policy complies with GDPR Art. 5(1)(e) (storage limitation) and reflects our "privacy by design" approach.
+
+**No recovery possible:**
+Once data is deleted, it is permanently removed with no backups. We cannot recover your session data.
+
+For more details, see our Data Retention Policy:
+https://conversely.online/data-retention
+
+If you believe this deletion violated your rights, you may contact your local Data Protection Authority. See Section 11 of our Privacy Policy for details.
+
+Best regards,  
+Conversely Support Team  
+hello@conversely.online
+```
+
+---
+
+### Template D: Supervisory Authority Response
+
+**Subject:** Re: DPA Inquiry — Conversely Data Processing Summary
+
+```
+Dear [DPA Name],
+
+Thank you for your inquiry regarding Conversely's data processing practices on behalf of [Data Subject Name/ID].
+
+**Service Overview:**
+Conversely (https://conversely.online) is an ephemeral conversation platform that facilitates short, anonymous dialogues between users. We operate without persistent accounts or long-term data storage.
+
+**Data Processing Summary:**
+- **Controller:** Conversely, hello@conversely.online
+- **Legal Basis:** Legitimate interests (service delivery, security) — GDPR Art. 6(1)(f)
+- **Data Collected:** Session IDs, randomized usernames/avatars, survey responses, conversation messages, IP addresses, technical logs
+- **Retention:** Messages (2 min), Sessions (24 hours), Logs (30-90 days)
+- **Automated Deletion:** Yes, enforced by scheduled cleanup jobs and database cascade rules
+
+**Data Subject Request Response:**
+[If specific data subject identified:]
+- Session ID: [if available]
+- Session Status: [active/expired/deleted]
+- Data Exported: [yes/no — attach JSON if available]
+- Deletion Date: [if applicable]
+
+[If data already deleted:]
+All data associated with this session was automatically deleted on [DATE] in accordance with our 24-hour retention policy. No recovery is possible.
+
+**Compliance Documentation:**
+- Privacy Policy: https://conversely.online/privacy
+- Data Retention Policy: https://conversely.online/data-retention
+- Self-Service GDPR Portal: https://conversely.online/privacy-requests
+
+**Technical Measures:**
+- Encryption: TLS/HTTPS for data in transit
+- Access Controls: Row-Level Security (RLS) policies
+- Rate Limiting: Prevents abuse and brute-force attacks
+- Automated Cleanup: Cron jobs run every 5 minutes to 1 hour
+
+**Contact for Follow-Up:**
+For additional information or clarification, please contact:
+- Email: hello@conversely.online
+- Response Time: Within 5 business days for regulatory inquiries
+
+We remain committed to full cooperation with your office.
+
+Best regards,  
+[Your Name]  
+Compliance Officer, Conversely  
+hello@conversely.online
+```
+
+---
+
+## 4. Audit Trail Queries
+
+### Export Requests (Last 30 Days)
 
 ```sql
 SELECT 
   created_at,
-  event_metadata->>'session_id' as session_id,
-  event_metadata->>'error_message' as error
-FROM maintenance_logs
-WHERE job_name = 'user_data_deleted'
-  AND event_metadata->>'status' = 'failed'
-ORDER BY created_at DESC
-LIMIT 20;
+  job_name,
+  would_close_count AS export_count,
+  safety_clamp_triggered
+FROM maintenance_logs 
+WHERE job_name = 'user_data_export'
+  AND created_at > now() - interval '30 days'
+ORDER BY created_at DESC;
 ```
 
-**Use Case:** Incident investigation, cascade integrity issues
+**Expected Output:**  
+- Timestamp of each export request
+- Number of exports completed
+- Whether rate limits were triggered
 
 ---
 
-### Query 4: Rate Limit Violations
+### Deletion Requests (Last 90 Days)
 
 ```sql
--- Check if user exceeded export rate limit (1 per 10 min)
-WITH user_exports AS (
-  SELECT 
-    event_metadata->>'session_id' as session_id,
-    created_at,
-    LAG(created_at) OVER (PARTITION BY event_metadata->>'session_id' ORDER BY created_at) as prev_export
-  FROM maintenance_logs
-  WHERE job_name = 'user_data_exported'
-)
-SELECT *
-FROM user_exports
-WHERE prev_export IS NOT NULL
-  AND created_at - prev_export < interval '10 minutes';
+SELECT 
+  created_at,
+  job_name,
+  closed_count AS deleted_sessions,
+  would_close_count AS deletion_attempts,
+  safety_clamp_triggered
+FROM maintenance_logs 
+WHERE job_name = 'user_data_deletion'
+  AND created_at > now() - interval '90 days'
+ORDER BY created_at DESC;
 ```
 
-**Use Case:** Abuse detection, rate limit tuning
+**Use Case:**  
+- Compliance audits
+- Verifying self-service deletion is working
+- Tracking manual deletion requests
 
 ---
 
-## Incident Response
+### Failed Deletion Attempts
+
+```sql
+SELECT * FROM maintenance_logs 
+WHERE job_name = 'user_data_deletion'
+  AND (safety_clamp_triggered = true OR closed_count = 0)
+  AND created_at > now() - interval '30 days'
+ORDER BY created_at DESC;
+```
+
+**Action Required:**  
+If failures detected:
+1. Check cascade constraints (see Scenario D)
+2. Review edge function logs for errors
+3. Escalate to Level 3 (Engineering) if persistent
+
+---
+
+### Rate Limit Violations (Data Exports)
+
+```sql
+SELECT * FROM maintenance_logs 
+WHERE job_name = 'user_data_export'
+  AND would_close_count > 5  -- Export limit per hour
+  AND created_at > now() - interval '7 days'
+ORDER BY created_at DESC;
+```
+
+**Expected Behavior:**  
+- Rate limit: 5 exports per session per hour
+- Excess requests are rejected with HTTP 429
+
+---
+
+## 5. Incident Response
 
 ### Incident Severity Levels
 
-| Severity | Definition | Response Time |
-|----------|------------|---------------|
-| **P0 - Critical** | Data breach, unauthorized access | Immediate (< 1 hour) |
-| **P1 - High** | Self-service portal down, cascade deletion failure | 4 hours |
-| **P2 - Medium** | Rate limit issues, timeout errors | 24 hours |
-| **P3 - Low** | UX issues, documentation gaps | 1 week |
+| Severity | Description | Response Time | Notification Required |
+|----------|-------------|---------------|----------------------|
+| **P0 (Critical)** | Data breach, unauthorized access, mass data exposure | Immediate (1 hour) | DPA + affected users |
+| **P1 (High)** | Cascade deletion failure, GDPR portal outage | 4 hours | Engineering + Compliance |
+| **P2 (Medium)** | Isolated deletion failure, audit trail gaps | 24 hours | Compliance Officer |
+| **P3 (Low)** | Delayed response to user request, minor log issues | 3 days | Support Team |
 
 ---
 
-### Incident Template
+### Incident Report Template
 
-**File:** `docs/incidents/YYYY-MM-DD_incident_name.md`
+**Incident ID:** [YYYYMMDD-###]  
+**Date/Time:** [ISO 8601 timestamp]  
+**Severity:** [P0/P1/P2/P3]  
+**Reporter:** [Name, Role]
 
-```markdown
-# Incident Report: [TITLE]
+**Summary:**  
+[Brief description of the incident]
 
-**Date:** [DATE]
-**Severity:** P1 - High
-**Status:** Resolved / In Progress / Monitoring
+**Timeline:**
+- [Timestamp] — Incident detected
+- [Timestamp] — Initial response
+- [Timestamp] — Root cause identified
+- [Timestamp] — Resolution deployed
+- [Timestamp] — Post-incident review completed
 
-## Summary
-Brief description of incident.
+**Root Cause:**  
+[Technical explanation of what went wrong]
 
-## Timeline
-- **14:00 UTC**: User reported error in /privacy-requests
-- **14:05 UTC**: Verified edge function timeout (export-user-data)
-- **14:15 UTC**: Increased function timeout from 10s to 30s
-- **14:20 UTC**: Deployed fix, verified with test user
-- **14:30 UTC**: Monitoring for recurrence
+**Resolution:**  
+[Steps taken to resolve the incident]
 
-## Root Cause
-Database query slow due to missing index on `guest_sessions.user_id`.
+**Prevention:**  
+[Changes implemented to prevent recurrence]
 
-## Resolution
-1. Added index: `CREATE INDEX idx_guest_sessions_user_id ON guest_sessions(user_id)`
-2. Increased function timeout as safety buffer
-3. Added monitoring query to detect slow queries
+**Affected Users:**  
+[Number of users affected, if known]
 
-## Prevention
-- Add database performance tests to CI/CD
-- Set up alerts for function timeouts > 5s
+**DPA Notification Required:** [Yes/No]  
+**User Notification Required:** [Yes/No]
 
-## Affected Users
-- User ID: [REDACTED]
-- Session ID: [REDACTED]
-- Manually processed export via SQL (logged in maintenance_logs)
-
-## Follow-Up Actions
-- [ ] Update GDPR_IMPLEMENTATION_PLAN.md with index requirement
-- [ ] Add performance test for export function
-- [ ] Review all edge functions for similar index gaps
-```
+**Follow-Up Actions:**
+- [ ] Update runbook
+- [ ] Deploy monitoring alerts
+- [ ] Schedule post-incident review
+- [ ] Document in incident log
 
 ---
 
-## Supervisory Authority Inquiries
+## 6. Supervisory Authority Inquiries
 
 ### Preparation Checklist
 
-Before responding to DPA inquiry:
+When a DPA (Data Protection Authority) contacts you:
 
-- [ ] Identify user by session ID or email (if provided)
-- [ ] Run audit trail queries (see [Audit Trail Queries](#audit-trail-queries))
-- [ ] Gather supporting docs (Privacy Policy, Data Retention Policy)
-- [ ] Verify compliance measures (self-service portal functional)
-- [ ] Prepare deletion receipt (if applicable)
-- [ ] Designate authorized responder (DPO or legal counsel)
-
-### Required Documentation
-
-1. **Privacy Policy** (`/legal/privacy`)
-2. **Data Retention Policy** (`/legal/data-retention`)
-3. **GDPR Implementation Plan** (`docs/GDPR_IMPLEMENTATION_PLAN.md`)
-4. **Audit Trail** (SQL query results from `maintenance_logs`)
-5. **RLS Policy Documentation** (from Supabase schema)
-
-### Response Timeline
-
-- **Initial acknowledgment**: Within 24 hours
-- **Full response**: Within 30 days (Art. 12(3))
-- **Urgent requests**: Within 72 hours (if justified by DPA)
+- [ ] **Acknowledge receipt within 48 hours**
+- [ ] **Identify the data subject** (session ID, username, timestamp)
+- [ ] **Verify data status** (active, expired, deleted)
+- [ ] **Run audit trail queries** (Section 4)
+- [ ] **Gather technical documentation** (Privacy Policy, Retention Policy, RLS policies)
+- [ ] **Prepare response using Template D** (Section 3)
+- [ ] **Escalate to Legal Counsel** if contentious or adversarial
 
 ---
 
-## Escalation Paths
+### Required Documentation
+
+Always include in DPA responses:
+1. **Privacy Policy** (https://conversely.online/privacy)
+2. **Data Retention Policy** (https://conversely.online/data-retention)
+3. **Technical Measures Summary** (encryption, RLS, rate limiting)
+4. **Data Processing Record (GDPR Art. 30)**
+   - Categories of data processed
+   - Purposes of processing
+   - Retention periods
+   - Sub-processors (Lovable Cloud/Supabase, hCaptcha)
+5. **Audit Trail** (export/deletion logs for relevant time period)
+
+---
+
+### Response Timelines
+
+| Request Type | Response Deadline | Notes |
+|--------------|-------------------|-------|
+| **Informal inquiry** | 5 business days | Use Template D |
+| **Formal data subject request** | 30 days (GDPR Art. 12) | Provide JSON export or deletion confirmation |
+| **Compliance audit notice** | Varies (typically 14-30 days) | Engage Legal Counsel |
+| **Breach notification** | 72 hours (GDPR Art. 33) | Critical — escalate immediately |
+
+---
+
+## 7. Escalation Paths
 
 ### Level 1: Support Team
-- Email-based requests from users
-- Self-service portal technical issues
+**Handles:**
+- Email inquiries about privacy requests
+- Directing users to self-service portal
 - Template responses (A, B, C)
 
 **Escalate to Level 2 if:**
-- User claims data breach
-- Legal threats or formal complaint
-- Supervisory authority inquiry
+- User disputes automated deletion
+- Technical failure in self-service portal
+- Request involves legal interpretation
 
 ---
 
 ### Level 2: Compliance Officer / DPO
-- Supervisory authority inquiries
-- Incident reports (P0, P1)
-- Manual data processing (last resort)
+**Handles:**
+- DPA inquiries
+- Audit trail verification
+- Manual deletion/export requests
+- Incident response (P2-P3)
 
 **Escalate to Level 3 if:**
-- Formal investigation by DPA
-- Court order / subpoena
-- Multi-user data breach
+- Cascade deletion failures persist
+- Security vulnerability detected
+- Incident severity P0-P1
 
 ---
 
-### Level 3: Legal Counsel
-- Litigation or legal proceedings
-- Multi-jurisdiction data requests
-- Significant compliance violations
+### Level 3: Engineering + Legal Counsel
+**Handles:**
+- Critical incidents (P0-P1)
+- Database corruption or cascade failures
+- Adversarial regulatory inquiries
+- Policy violations with legal implications
+
+**Authority:**
+- Can authorize emergency database access
+- Can approve policy changes
+- Coordinates with external legal counsel
 
 ---
 
 ## Appendix: Data Retention Summary
 
-| Data Type | Retention Period | Deletion Method |
-|-----------|------------------|-----------------|
-| Messages | 2 minutes | Automatic (cron job) |
-| Guest Sessions | 24 hours | Automatic (cron job) + cascade |
-| Survey Answers | 24 hours | Cascade (on session delete) |
-| Reflections | 24 hours | Cascade (on session delete) |
-| Blocked Pairs | 24 hours | Cascade (on session delete) |
-| Auth Records | 24 hours | Manual (via delete function) |
-| Maintenance Logs (GDPR events) | 90 days | Automatic (cron job) |
+| Data Type | Retention | Deletion Method | Legal Basis |
+|-----------|-----------|-----------------|-------------|
+| Messages | 2 minutes | Automated (cron) | Privacy by design (GDPR Art. 5) |
+| Sessions | 24 hours | Automated (cron) | Session lifecycle |
+| Survey Answers | 24 hours | Cascade | Tied to session |
+| Reflections | 24 hours | Cascade | Tied to session/room |
+| Blocked Pairs | 24 hours | Cascade | Tied to session |
+| Security Logs | 60 days | Scheduled cleanup | Fraud prevention (GDPR Art. 6) |
+| Error Logs | 30 days | Scheduled cleanup | Platform stability |
+| Maintenance Logs | 90 days | Scheduled cleanup | System health monitoring |
 
-**Legal Basis:** Art. 6(1)(f) (legitimate interests) + Art. 5(1)(e) (storage limitation)
-
----
-
-## Document History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2025-10-17 | Initial runbook created |
+**Key Takeaway:**  
+Most user data is ephemeral (24 hours or less). Technical logs are retained longer for security and operational purposes but contain no message content.
 
 ---
 
-**Owner:** Compliance Officer  
-**Review Cycle:** Quarterly or after any P0/P1 incident  
-**Contact:** hello@conversely.online
+**Document Control:**
+- **Version:** 1.0
+- **Last Updated:** October 17, 2025
+- **Next Review:** January 17, 2026
+- **Owner:** Compliance Officer
+- **Approver:** Legal Counsel
+
+---
+
+**End of GDPR Compliance Operational Runbook**

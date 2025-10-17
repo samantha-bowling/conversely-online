@@ -142,7 +142,29 @@ Cascade rules ensure that no data is left behind when a parent record (session o
 
 ## 6. Manual Deletion Requests
 
-You can request immediate deletion of your data by emailing **hello@conversely.online** with the subject "Data Deletion Request."
+### Self-Service Deletion (Recommended)
+
+For immediate deletion of your data, use our real-time self-service portal at [/privacy-requests](/privacy-requests).
+
+**While your session is active (within 24 hours):**
+- Click **"Delete My Data"** to permanently remove:
+  - Your session record
+  - Survey answers
+  - Reflections
+  - Blocked pairs
+  - Reputation scores
+  - Any active chat room data
+- Deletion happens instantly with JWT token revocation
+- An audit trail is logged for compliance purposes
+
+**After deletion:**
+- Your session is immediately terminated
+- You cannot undo this action
+- Messages are already auto-deleted (2-minute expiry), so they're not included in manual deletion
+
+### Email-Based Deletion (Fallback)
+
+If you cannot access the self-service portal, you can request deletion by emailing **hello@conversely.online** with the subject "Data Deletion Request."
 
 **What to include:**
 - Your session timestamp or approximate usage date

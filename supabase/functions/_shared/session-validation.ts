@@ -30,19 +30,26 @@ setInterval(() => {
 
 /**
  * Validates an active guest session with enterprise-grade security
+ * 
+ * CRITICAL: Must pass JWT explicitly in Edge Function context.
+ * Service Role Key clients cannot infer user context automatically.
+ * 
  * Features:
  * - JWT issuer/audience verification
  * - Request-scoped memoization (5s TTL)
  * - Replay protection via last_validated_at
  * - Defense-in-depth with RLS fallback
  * 
- * @param supabase - Supabase client instance
+ * @param supabase - Supabase client initialized with SERVICE_ROLE_KEY
  * @param userId - User ID from JWT (auth.uid())
+ * @param jwt - User's access token (REQUIRED for getUser() call)
  * @returns SessionValidationResult with session data or error
+ * @throws Never - all errors returned in result object
  */
 export async function validateActiveSession(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  jwt: string
 ): Promise<SessionValidationResult> {
   const cacheKey = userId;
   const now = Date.now();
@@ -57,13 +64,27 @@ export async function validateActiveSession(
   console.log(`[Session Validation] Cache miss - validating user ${userId}`);
 
   try {
-    // Verify JWT issuer/audience (prevents token forgery)
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
+    // Guard: Fail early if JWT missing (prevents silent failures)
+    if (!jwt) {
+      console.error('[Session Validation] CRITICAL: Missing JWT parameter');
       const result: SessionValidationResult = {
         valid: false,
-        error: INVALID_JWT_ERROR.error,
+        error: 'Missing authentication token',
+        code: 'MISSING_JWT',
+      };
+      return result; // Don't cache failed validations due to missing JWT
+    }
+
+    console.log(`[Session Validation] Validating session for user ${userId}`);
+    
+    // Verify JWT issuer/audience (prevents token forgery)
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    
+    if (userError || !user) {
+      console.error('[Session Validation] JWT validation failed:', userError?.message);
+      const result: SessionValidationResult = {
+        valid: false,
+        error: userError?.message || INVALID_JWT_ERROR.error,
         code: INVALID_JWT_ERROR.code,
       };
       validationCache.set(cacheKey, { result, timestamp: now });

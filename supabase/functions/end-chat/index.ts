@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     }
 
     // Validate active session with enterprise-grade checks
-    const sessionValidation = await validateActiveSession(supabase, user.id);
+    const sessionValidation = await validateActiveSession(supabase, user.id, jwt);
     
     if (!sessionValidation.valid) {
       console.error('Session validation failed:', sessionValidation.error);

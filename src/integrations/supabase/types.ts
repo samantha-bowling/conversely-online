@@ -107,6 +107,7 @@ export type Database = {
           last_matched_at: string | null
           last_matched_session_id: string | null
           last_quick_exit: string | null
+          last_validated_at: string | null
           next_match_at: string | null
           quick_exits: number
           reputation_score: number
@@ -125,6 +126,7 @@ export type Database = {
           last_matched_at?: string | null
           last_matched_session_id?: string | null
           last_quick_exit?: string | null
+          last_validated_at?: string | null
           next_match_at?: string | null
           quick_exits?: number
           reputation_score?: number
@@ -143,6 +145,7 @@ export type Database = {
           last_matched_at?: string | null
           last_matched_session_id?: string | null
           last_quick_exit?: string | null
+          last_validated_at?: string | null
           next_match_at?: string | null
           quick_exits?: number
           reputation_score?: number
@@ -348,6 +351,10 @@ export type Database = {
         Returns: undefined
       }
       close_inactive_rooms: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      revoke_expired_guest_auth: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { validateActiveSession } from '../_shared/session-validation.ts';
 import { checkRateLimit, logRateLimit } from '../_shared/validation.ts';
 import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
+import { SESSION_EXPIRED_ERROR, UNAUTHORIZED_ERROR, REQUEST_TOO_LARGE_ERROR } from '../_shared/errors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +53,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { status: 401, headers: securityHeaders }
       );
     }
@@ -62,10 +64,26 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       console.error('Authentication failed:', authError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { status: 401, headers: securityHeaders }
       );
     }
+
+    // Validate active session with enterprise-grade checks
+    const sessionValidation = await validateActiveSession(supabase, user.id);
+    
+    if (!sessionValidation.valid) {
+      console.error('Session validation failed:', sessionValidation.error);
+      return new Response(
+        JSON.stringify({ 
+          error: sessionValidation.error, 
+          code: sessionValidation.code 
+        }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    const session = sessionValidation.session!;
 
     // Rate limiting: 10 reflections per 10 minutes per user
     const rateLimitKey = `submit-reflection:${user.id}`;
@@ -122,20 +140,7 @@ Deno.serve(async (req) => {
 
     const feedbackText = feedback?.trim().slice(0, 500) || null;
 
-    // Get session for this user
-    const { data: session, error: sessionError } = await supabase
-      .from('guest_sessions')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (sessionError || !session) {
-      console.error('Session lookup failed:', sessionError);
-      return new Response(
-        JSON.stringify({ error: 'Session not found' }),
-        { status: 404, headers: securityHeaders }
-      );
-    }
+    // Session already validated via validateActiveSession above
 
     // Verify user was a participant in this room
     const { data: room, error: roomError } = await supabase

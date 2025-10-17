@@ -1,12 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { validateActiveSession } from '../_shared/session-validation.ts';
 import {
-  validateSession,
   validateMessageContent,
   verifyRoomParticipant,
   checkRateLimit,
   logRateLimit,
 } from '../_shared/validation.ts';
 import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
+import { SESSION_EXPIRED_ERROR, UNAUTHORIZED_ERROR, REQUEST_TOO_LARGE_ERROR } from '../_shared/errors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - missing auth token' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { headers: securityHeaders, status: 401 }
       );
     }
@@ -58,25 +59,26 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       console.error('JWT validation error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Invalid auth token' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { headers: securityHeaders, status: 401 }
       );
     }
 
-    // Look up guest session by user_id
-    const { data: session, error: sessionError } = await supabase
-      .from('guest_sessions')
-      .select('id, username, avatar, expires_at, is_test, reputation_score, quick_exits, last_matched_session_id, last_matched_at, next_match_at, is_searching, last_heartbeat_at, times_blocked, last_quick_exit, created_at')
-      .eq('user_id', user.id)
-      .single();
-
-    if (sessionError || !session) {
+    // Validate active session with enterprise-grade checks
+    const sessionValidation = await validateActiveSession(supabase, user.id);
+    
+    if (!sessionValidation.valid) {
+      console.error('Session validation failed:', sessionValidation.error);
       return new Response(
-        JSON.stringify({ error: 'Session not found' }),
-        { headers: securityHeaders, status: 404 }
+        JSON.stringify({ 
+          error: sessionValidation.error, 
+          code: sessionValidation.code 
+        }),
+        { headers: securityHeaders, status: 401 }
       );
     }
 
+    const session = sessionValidation.session!;
     const session_id = session.id;
     
     const body = await req.json();
@@ -118,18 +120,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate session
-    const sessionValidation = await validateSession(supabase, session_id);
-    if (!sessionValidation.valid) {
-      console.log('Invalid session:', sessionValidation.error);
-      return new Response(
-        JSON.stringify({ error: sessionValidation.error }),
-        {
-          headers: securityHeaders,
-          status: 401,
-        }
-      );
-    }
+    // Session validation already done above via validateActiveSession
 
     // Validate message content
     const contentValidation = validateMessageContent(content);

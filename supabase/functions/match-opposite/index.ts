@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import { validateActiveSession } from '../_shared/session-validation.ts';
 import { checkRateLimit, logRateLimit, BLOCKED_PATTERNS, normalizeForDetection } from '../_shared/validation.ts';
 import { RATE_LIMIT_CONFIG } from '../_shared/rate-limit-config.ts';
+import { SESSION_EXPIRED_ERROR, UNAUTHORIZED_ERROR, REQUEST_TOO_LARGE_ERROR } from '../_shared/errors.ts';
 
 // Heartbeat configuration for ghost account prevention
 const MATCH_HEARTBEAT_TTL_MS = 15000; // Match requires 15s freshness
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - missing auth token' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { headers: securityHeaders, status: 401 }
       );
     }
@@ -67,22 +69,37 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       console.error('JWT validation error:', userError);
       return new Response(
-        JSON.stringify({ error: 'Invalid auth token' }),
+        JSON.stringify(UNAUTHORIZED_ERROR),
         { headers: securityHeaders, status: 401 }
       );
     }
 
-    // Look up guest session by user_id
-    // Note: user_id is included here for self-match prevention logic, but never returned to clients
+    // Validate active session with enterprise-grade checks
+    const sessionValidation = await validateActiveSession(supabase, user.id);
+    
+    if (!sessionValidation.valid) {
+      console.error('Session validation failed:', sessionValidation.error);
+      return new Response(
+        JSON.stringify({ 
+          error: sessionValidation.error, 
+          code: sessionValidation.code 
+        }),
+        { headers: securityHeaders, status: 401 }
+      );
+    }
+
+    // Get additional session fields needed for matching
+    // Note: user_id is included for self-match prevention logic, but never returned to clients
     const { data: sessionData, error: sessionError } = await supabase
       .from('guest_sessions')
-      .select('id, username, avatar, expires_at, is_test, reputation_score, quick_exits, last_matched_session_id, last_matched_at, next_match_at, is_searching, last_heartbeat_at, times_blocked, last_quick_exit, created_at, user_id')
+      .select('id, username, avatar, reputation_score, quick_exits, last_quick_exit, is_test, next_match_at, times_blocked, last_heartbeat_at, user_id')
       .eq('user_id', user.id)
       .single();
 
     if (sessionError || !sessionData) {
+      console.error('Session lookup error:', sessionError);
       return new Response(
-        JSON.stringify({ error: 'Session not found' }),
+        JSON.stringify({ error: 'Session not found or expired' }),
         { headers: securityHeaders, status: 404 }
       );
     }

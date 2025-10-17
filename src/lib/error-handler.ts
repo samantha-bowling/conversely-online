@@ -44,6 +44,16 @@ export const handleApiError = (error: unknown, fallbackMessage: string): void =>
   if (error && typeof error === 'object' && 'message' in error) {
     const message = String(error.message);
     
+    // Check for SESSION_EXPIRED error code (from new validation middleware)
+    if ('code' in error && error.code === 'SESSION_EXPIRED') {
+      // Call global session expiry handler (registered by SessionContext)
+      if (typeof window !== 'undefined' && '__handleSessionExpired' in window) {
+        (window as any).__handleSessionExpired();
+      }
+      // Suppress generic error toast - SessionContext handles UX
+      return;
+    }
+    
     // Handle known error types
     if (message.includes('409') || message.toLowerCase().includes('duplicate') || message.toLowerCase().includes('already submitted')) {
       handleError(error, {

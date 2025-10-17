@@ -200,8 +200,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         setSession(null);
         localStorage.removeItem('guest_session');
       } else if (event === 'TOKEN_REFRESHED' && authSession?.user) {
-        console.log('[Session] Token refreshed for user:', authSession.user.id);
+        console.log('[Session] ✓ JWT token refreshed for user:', authSession.user.id);
         // Session state is still valid, no action needed
+        // This refresh happens automatically before the 1h JWT expiry
       }
     });
 
@@ -280,6 +281,38 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     return () => clearInterval(interval);
   }, [session?.expires_at, refreshSession]);
+
+  // Register global session expiry handler for API error detection
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      console.log('[Session] Session expired via API error - cleaning up');
+      
+      // Show grace period notification
+      toast.error(
+        `Your session has expired. Redirecting to home page...`,
+        {
+          duration: 2000,
+          position: 'top-center',
+        }
+      );
+      
+      // Clear session state
+      setSession(null);
+      localStorage.removeItem('guest_session');
+      
+      // Navigate after brief delay
+      setTimeout(() => {
+        window.location.href = '/session-expired';
+      }, 2000);
+    };
+
+    // Register global handler for error-handler.ts to call
+    (window as any).__handleSessionExpired = handleSessionExpired;
+
+    return () => {
+      delete (window as any).__handleSessionExpired;
+    };
+  }, []);
 
   return (
     <SessionContext.Provider value={{ session, loading, ensureAnonAuth, initializeSession, refreshSession }}>

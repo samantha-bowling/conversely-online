@@ -22,6 +22,7 @@ import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useTypingPresence } from "@/hooks/useTypingPresence";
 import { useSessionExpiry } from "@/hooks/useSessionExpiry";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useMessageQueue } from "@/hooks/useMessageQueue";
 import { logNetworkEvent } from "@/lib/network-telemetry";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,6 @@ const Chat = () => {
   const [currentPrompt, setCurrentPrompt] = useState(getRandomPrompt);
   const [shufflesRemaining, setShufflesRemaining] = useState(3);
   const [showExpiryBanner, setShowExpiryBanner] = useState(true);
-  const [isSending, setIsSending] = useState(false);
   const [isEndingChat, setIsEndingChat] = useState(false);
   const [showReportSheet, setShowReportSheet] = useState(false);
   const [showReflectionDialog, setShowReflectionDialog] = useState(false);
@@ -59,6 +59,22 @@ const Chat = () => {
   
   // Track component mount state for toast timing guard
   const isMounted = useRef(true);
+
+  // Message queue for reliable delivery
+  const { enqueueMessage, queuedCount, isProcessing: isQueueProcessing } = useMessageQueue(
+    session?.id || '',
+    async (roomId, content, clientId) => {
+      const { data, error } = await supabase.functions.invoke('send-message', {
+        body: {
+          room_id: roomId,
+          content,
+          client_id: clientId,
+        },
+      });
+      if (error) throw error;
+      return data;
+    }
+  );
   
   useEffect(() => {
     isMounted.current = true;
@@ -240,7 +256,7 @@ const Chat = () => {
   }
 
   const handleSend = async () => {
-    if (!inputText.trim() || !roomId || !session || isSending) return;
+    if (!inputText.trim() || !roomId || !session) return;
 
     const messageText = inputText.trim();
     
@@ -251,33 +267,11 @@ const Chat = () => {
       return;
     }
 
+    // Clear input immediately for better UX
     setInputText("");
-    setIsSending(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke<SendMessageResponse>('send-message', {
-        body: {
-          room_id: roomId,
-          content: messageText,
-        },
-      });
-
-      if (error) {
-        handleApiError(error, ERROR_MESSAGES.SEND_MESSAGE_FAILED);
-        setInputText(messageText);
-        return;
-      }
-
-      if (!data?.success) {
-        toast.error(ERROR_MESSAGES.SEND_MESSAGE_FAILED);
-        setInputText(messageText);
-      }
-    } catch (error) {
-      handleApiError(error, ERROR_MESSAGES.SEND_MESSAGE_FAILED);
-      setInputText(messageText);
-    } finally {
-      setIsSending(false);
-    }
+    
+    // Enqueue message - queue handles sending, retries, and errors
+    await enqueueMessage(roomId, messageText);
   };
 
   const handleEndChat = async () => {
@@ -721,7 +715,9 @@ const Chat = () => {
                   }
                 }}
                 onSend={handleSend}
-                disabled={roomStatus === "ended" || isSending || connectionStatus !== "connected"}
+                disabled={roomStatus === "ended" || connectionStatus !== "connected"}
+                queuedCount={queuedCount}
+                isProcessing={isQueueProcessing}
               />
             </>
           )}

@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const session_id = session.id;
     
     const body = await req.json();
-    const { room_id, content } = body;
+    const { room_id, content, client_id } = body;
 
     // Validate UUIDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -184,6 +184,35 @@ Deno.serve(async (req) => {
           status: 400,
         }
       );
+    }
+
+    // Deduplication check: prevent duplicate messages within 60-second window
+    // Uses (room_id, session_id, content) triple-key to identify duplicates
+    if (client_id) {
+      const { data: existingMessage } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('room_id', room_id)
+        .eq('session_id', session_id)
+        .eq('content', content.trim())
+        .gte('created_at', new Date(Date.now() - 60000).toISOString())
+        .limit(1)
+        .single();
+
+      if (existingMessage) {
+        console.log('Deduplication: Found duplicate message:', existingMessage.id);
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            deduplicated: true, 
+            message_id: existingMessage.id 
+          }),
+          {
+            headers: securityHeaders,
+            status: 200,
+          }
+        );
+      }
     }
 
     // Insert message

@@ -30,6 +30,7 @@ export interface GetRoomDataResponse {
 export interface SendMessageResponse {
   success: boolean;
   message_id: string;
+  deduplicated?: boolean;
 }
 
 export interface EndChatResponse {

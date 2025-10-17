@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VALIDATION } from "@/config/constants";
@@ -10,13 +10,17 @@ interface ChatInputProps {
   onInputChange: (text: string) => void;
   onSend: () => void;
   disabled?: boolean;
+  queuedCount?: number;
+  isProcessing?: boolean;
 }
 
 export const ChatInput = ({ 
   inputText, 
   onInputChange, 
   onSend,
-  disabled = false 
+  disabled = false,
+  queuedCount = 0,
+  isProcessing = false
 }: ChatInputProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [canSendFirstMessage, setCanSendFirstMessage] = useState(false);
@@ -101,6 +105,16 @@ export const ChatInput = ({
       }}
       aria-label="Send message form"
     >
+      {/* Queue indicator */}
+      {queuedCount > 0 && (
+        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500 px-2">
+          <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+          <span aria-live="polite" aria-atomic="true">
+            Sending {queuedCount} message{queuedCount > 1 ? 's' : ''}...
+          </span>
+        </div>
+      )}
+      
       <div className="flex gap-2">
         <label htmlFor="message-input" className="sr-only">
           Type your message

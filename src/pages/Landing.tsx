@@ -90,7 +90,7 @@ const Landing = () => {
           <p className="text-muted-foreground text-base leading-relaxed">Short, anonymous conversations with people who are unlike you. No accounts. No history. Just a moment to converse.</p>
         </div>
 
-        <div className="pt-8 space-y-4">
+        <div className="pt-6 space-y-4">
           <ConversationButton 
             variant="primary" 
             onClick={handleStartClick}
@@ -130,7 +130,7 @@ const Landing = () => {
       </div>
 
       {/* Footer */}
-      <footer className="w-full pb-4">
+      <footer className="w-full pt-8 pb-4">
         <Footer variant="default" />
       </footer>
 

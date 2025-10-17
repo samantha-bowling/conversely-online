@@ -9,7 +9,7 @@ import { AlertCircle } from 'lucide-react';
 interface LegalDocumentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  document: 'terms' | 'privacy';
+  document: 'terms' | 'privacy' | 'data-retention';
   onDocumentViewed?: () => void;
 }
 
@@ -23,6 +23,11 @@ const DOCUMENT_CONFIG = {
     title: 'Privacy Policy',
     path: '/legal/privacy.md',
     lastUpdated: 'October 6, 2025',
+  },
+  'data-retention': {
+    title: 'Data Retention Policy',
+    path: '/legal/data-retention.md',
+    lastUpdated: 'October 14, 2025',
   },
 };
 

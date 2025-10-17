@@ -9,7 +9,7 @@ interface FooterProps {
 }
 
 export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
-  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
+  const { openTerms, openPrivacy, openDataRetention, LegalSheet } = useLegalSheet();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
@@ -39,12 +39,13 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
           Privacy
         </Button>
         <span>•</span>
-        <a 
-          href="/data-retention" 
-          className="hover:text-foreground transition-colors"
+        <Button 
+          variant="link" 
+          onClick={openDataRetention}
+          className="p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
         >
           Data Retention
-        </a>
+        </Button>
         <span>•</span>
         {variant === 'chat' ? (
           <Button 

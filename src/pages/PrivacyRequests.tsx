@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Download, Edit, Trash2, Clock, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Download, Trash2, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/Footer';
@@ -206,15 +206,6 @@ const PrivacyRequests = () => {
               >
                 <Download className="w-4 h-4 mr-2" />
                 {isExporting ? 'Exporting...' : 'Export My Data'}
-              </Button>
-
-              <Button
-                onClick={() => navigate('/survey/edit')}
-                variant="outline"
-                className="w-full justify-start"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Survey Answers
               </Button>
 
               <Button

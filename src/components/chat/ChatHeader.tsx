@@ -5,9 +5,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Lightbulb, Wifi, Shuffle, Flag, MoreVertical } from "lucide-react";
+import { Lightbulb, Wifi, Shuffle, Flag, MoreVertical, Download } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { generateTranscript, downloadTranscript } from "@/utils/transcriptExport";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { ConnectionStatus } from "@/hooks/useChatRealtime";
+
+interface Message {
+  id: string;
+  sender: "me" | "other";
+  text: string;
+  timestamp: Date;
+  fading?: boolean;
+  remaining?: number;
+  pending?: boolean;
+}
 
 interface ChatHeaderProps {
   roomStatus: string;
@@ -17,6 +30,9 @@ interface ChatHeaderProps {
   currentUsername?: string;
   currentAvatar?: string;
   isEndingChat?: boolean;
+  messages?: Message[];
+  roomId?: string;
+  sessionExpiry?: string;
   onShowPrompt: () => void;
   onReport: () => void;
   onNewMatch: () => void;
@@ -31,11 +47,34 @@ export const ChatHeader = ({
   currentUsername = "You",
   currentAvatar = "👤",
   isEndingChat = false,
+  messages = [],
+  roomId = "",
+  sessionExpiry = "",
   onShowPrompt,
   onReport,
   onNewMatch,
   onEndChat 
 }: ChatHeaderProps) => {
+  const handleDownloadTranscript = () => {
+    if (!roomId || !sessionExpiry) {
+      toast.error('Unable to generate transcript');
+      return;
+    }
+
+    try {
+      const transcript = generateTranscript(
+        messages,
+        roomId,
+        partnerUsername,
+        sessionExpiry
+      );
+      downloadTranscript(transcript);
+      toast.success('Transcript downloaded');
+    } catch (error) {
+      console.error('Failed to download transcript:', error);
+      toast.error('Failed to download transcript');
+    }
+  };
   const getConnectionBadgeClasses = () => {
     if (roomStatus === "ended") {
       return "bg-red-500/10 text-red-600 border-red-500/20";
@@ -94,6 +133,26 @@ export const ChatHeader = ({
         
         {/* Right: Action controls */}
         <nav className="flex items-center gap-1.5 md:gap-2 flex-shrink-0" aria-label="Chat controls">
+          {/* Download Transcript */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadTranscript}
+                  aria-label="Download chat transcript"
+                  className="h-9 w-9 p-0"
+                >
+                  <Download className="w-4 h-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Download transcript</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Prompt - Frequent action */}
           <Button
             variant="ghost"

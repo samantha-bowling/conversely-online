@@ -625,6 +625,9 @@ const Chat = () => {
         currentUsername={session?.username}
         currentAvatar={session?.avatar}
         isEndingChat={isEndingChat}
+        messages={messages}
+        roomId={roomId}
+        sessionExpiry={session?.expires_at}
         onShowPrompt={handleShowPrompt}
         onReport={handleReport}
         onNewMatch={() => setShowNewMatchDialog(true)}

@@ -9,6 +9,7 @@ import { recordAcceptance, markAgeGateSeen, getAcceptance } from '@/utils/legalA
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Check, Info, MapPin, Loader2 } from 'lucide-react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
+import { LegalDocumentSheet } from '@/components/LegalDocumentSheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/contexts/SessionContext';
@@ -109,15 +110,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
   const captchaRef = useRef<HCaptcha>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  const handleDocumentViewed = (doc: 'terms' | 'privacy') => {
-    if (doc === 'terms') {
-      setViewedTerms(true);
-    } else {
-      setViewedPrivacy(true);
-    }
-  };
-
-  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet(handleDocumentViewed);
+  const { open: legalOpen, document, openTerms, openPrivacy, setOpen: setLegalOpen } = useLegalSheet();
   const { ensureAnonAuth, initializeSession } = useSession();
   const [country, setCountry] = useState<string>('');
   const [day, setDay] = useState<string>('');
@@ -137,6 +130,23 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
     resolve: (token: string) => void;
     reject: (error: Error) => void;
   } | null>(null);
+
+  // Track when legal sheet closes to mark document as viewed
+  const lastOpenDocRef = useRef<'terms' | 'privacy' | 'data-retention' | null>(null);
+  
+  useEffect(() => {
+    if (legalOpen) {
+      lastOpenDocRef.current = document;
+    } else if (lastOpenDocRef.current) {
+      // Sheet just closed, mark document as viewed
+      if (lastOpenDocRef.current === 'terms') {
+        setViewedTerms(true);
+      } else if (lastOpenDocRef.current === 'privacy') {
+        setViewedPrivacy(true);
+      }
+      lastOpenDocRef.current = null;
+    }
+  }, [legalOpen, document]);
 
   // Unmount safety and cleanup
   useEffect(() => {
@@ -645,7 +655,7 @@ export const AgeGate = ({ open, onAccept, onClose, needsLegalUpdate = false }: A
           </Button>
         </div>
       </DialogContent>
-      <LegalSheet />
+      <LegalDocumentSheet open={legalOpen} onOpenChange={setLegalOpen} document={document} />
     </Dialog>
     </TooltipProvider>
   );

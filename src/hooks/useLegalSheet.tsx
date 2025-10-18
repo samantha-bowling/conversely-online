@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { LegalDocumentSheet } from '@/components/LegalDocumentSheet';
 
-export const useLegalSheet = (onDocumentViewed?: (document: 'terms' | 'privacy' | 'data-retention') => void) => {
+export const useLegalSheet = () => {
   const [open, setOpen] = useState(false);
   const [document, setDocument] = useState<'terms' | 'privacy' | 'data-retention'>('terms');
 
@@ -20,18 +19,5 @@ export const useLegalSheet = (onDocumentViewed?: (document: 'terms' | 'privacy' 
     setOpen(true);
   };
 
-  const handleDocumentViewed = () => {
-    onDocumentViewed?.(document);
-  };
-
-  const LegalSheet = () => (
-    <LegalDocumentSheet 
-      open={open} 
-      onOpenChange={setOpen} 
-      document={document}
-      onDocumentViewed={handleDocumentViewed}
-    />
-  );
-
-  return { openTerms, openPrivacy, openDataRetention, LegalSheet };
+  return { open, document, openTerms, openPrivacy, openDataRetention, setOpen };
 };

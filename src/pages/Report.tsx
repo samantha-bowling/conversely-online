@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
+import { LegalDocumentSheet } from '@/components/LegalDocumentSheet';
 
 const Report = () => {
-  const { openTerms, LegalSheet } = useLegalSheet();
+  const { open, document, openTerms, setOpen } = useLegalSheet();
 
   return (
     <div className="min-h-screen bg-background">
@@ -103,7 +104,7 @@ const Report = () => {
         </div>
       </main>
 
-      <LegalSheet />
+      <LegalDocumentSheet open={open} onOpenChange={setOpen} document={document} />
     </div>
   );
 };

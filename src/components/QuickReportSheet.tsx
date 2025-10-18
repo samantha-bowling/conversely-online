@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
+import { LegalDocumentSheet } from '@/components/LegalDocumentSheet';
 import { useState } from 'react';
 
 interface QuickReportSheetProps {
@@ -12,7 +13,7 @@ interface QuickReportSheetProps {
 }
 
 export const QuickReportSheet = ({ open, onOpenChange }: QuickReportSheetProps) => {
-  const { openTerms, LegalSheet } = useLegalSheet();
+  const { open: legalOpen, document, openTerms, setOpen: setLegalOpen } = useLegalSheet();
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -98,7 +99,7 @@ export const QuickReportSheet = ({ open, onOpenChange }: QuickReportSheetProps) 
           </div>
         </SheetContent>
       </Sheet>
-      <LegalSheet />
+      <LegalDocumentSheet open={legalOpen} onOpenChange={setLegalOpen} document={document} />
     </>
   );
 };

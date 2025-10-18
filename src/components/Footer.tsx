@@ -4,6 +4,7 @@ import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { useSession } from '@/contexts/SessionContext';
 import { Button } from '@/components/ui/button';
 import { AboutSheet } from '@/components/AboutSheet';
+import { LegalDocumentSheet } from '@/components/LegalDocumentSheet';
 import { isWithinGracePeriod, getStoredSession } from '@/utils/sessionGracePeriod';
 
 interface FooterProps {
@@ -13,7 +14,7 @@ interface FooterProps {
 }
 
 export const Footer = ({ variant = 'default', onReportClick, onPrivacyRequestsClick }: FooterProps) => {
-  const { openTerms, openPrivacy, openDataRetention, LegalSheet } = useLegalSheet();
+  const { open, document, openTerms, openPrivacy, openDataRetention, setOpen } = useLegalSheet();
   const { session } = useSession();
   const [aboutOpen, setAboutOpen] = useState(false);
 
@@ -104,7 +105,7 @@ export const Footer = ({ variant = 'default', onReportClick, onPrivacyRequestsCl
           </>
         )}
       </div>
-      <LegalSheet />
+      <LegalDocumentSheet open={open} onOpenChange={setOpen} document={document} />
       <AboutSheet open={aboutOpen} onOpenChange={setAboutOpen} />
     </>
   );

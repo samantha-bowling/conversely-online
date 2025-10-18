@@ -12,12 +12,10 @@ import { toast } from "sonner";
 import type { TablesInsert } from '@/integrations/supabase/types';
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { useLegalSheet } from "@/hooks/useLegalSheet";
 
 const Survey = () => {
   const navigate = useNavigate();
   const { session } = useSession();
-  const { openTerms, openPrivacy, LegalSheet } = useLegalSheet();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -296,8 +294,6 @@ const Survey = () => {
       <footer className="pt-8">
         <Footer variant="default" />
       </footer>
-
-      <LegalSheet />
     </div>
   );
 };

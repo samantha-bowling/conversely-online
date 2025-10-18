@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLegalSheet } from '@/hooks/useLegalSheet';
+import { useSession } from '@/contexts/SessionContext';
 import { Button } from '@/components/ui/button';
 import { AboutSheet } from '@/components/AboutSheet';
 
@@ -10,6 +12,7 @@ interface FooterProps {
 
 export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
   const { openTerms, openPrivacy, openDataRetention, LegalSheet } = useLegalSheet();
+  const { session } = useSession();
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
@@ -46,6 +49,17 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
         >
           Data Retention
         </Button>
+        {session && (
+          <>
+            <span>•</span>
+            <Link 
+              to="/privacy-requests"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Manage My Data
+            </Link>
+          </>
+        )}
         <span>•</span>
         {variant === 'chat' ? (
           <Button 

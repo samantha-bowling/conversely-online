@@ -3,7 +3,6 @@ import { ChevronLeft, Download, Trash2, Clock, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Footer } from '@/components/Footer';
-import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
@@ -19,7 +18,6 @@ import {
 import { Input } from '@/components/ui/input';
 
 const PrivacyRequests = () => {
-  const { openPrivacy, LegalSheet } = useLegalSheet();
   const { session } = useSession();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -222,13 +220,12 @@ const PrivacyRequests = () => {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               For more information, see our{' '}
-              <Button
-                variant="link"
-                onClick={openPrivacy}
-                className="p-0 h-auto text-sm text-primary hover:underline"
+              <Link 
+                to="/privacy"
+                className="text-primary hover:underline"
               >
                 Privacy Policy
-              </Button>
+              </Link>
             </p>
           </div>
         </div>
@@ -289,8 +286,6 @@ const PrivacyRequests = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <LegalSheet />
     </div>
   );
 };

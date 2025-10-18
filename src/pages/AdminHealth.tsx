@@ -93,12 +93,12 @@ export default function AdminHealth() {
 
       setMetrics(healthData?.[0] || null);
 
-      // Query 2: Maintenance logs
-      const { data: logsData } = await supabase
-        .from('maintenance_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Query 2: Maintenance logs (via RPC to bypass RLS)
+      const { data: logsData, error: logsError } = await supabase.rpc('get_maintenance_logs', { _limit: 10 });
+      
+      if (logsError) {
+        console.error('Failed to load maintenance logs:', logsError);
+      }
 
       setLogs(logsData || []);
       setLastRefresh(new Date());

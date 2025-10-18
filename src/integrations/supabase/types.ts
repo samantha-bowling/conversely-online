@@ -365,6 +365,17 @@ export type Database = {
           users_online_now: number
         }[]
       }
+      get_maintenance_logs: {
+        Args: { _limit?: number }
+        Returns: {
+          closed_count: number
+          created_at: string
+          id: string
+          job_name: string
+          safety_clamp_triggered: boolean
+          would_close_count: number
+        }[]
+      }
       revoke_expired_guest_auth: {
         Args: Record<PropertyKey, never>
         Returns: undefined

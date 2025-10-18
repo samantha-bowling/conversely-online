@@ -101,6 +101,8 @@ export const PrivacyRequestsSheet = ({ open, onOpenChange }: PrivacyRequestsShee
 
       if (error) throw error;
 
+      console.log('[PrivacyRequestsSheet] Deletion response:', data);
+
       // Auto-download deletion receipt if available
       if (data?.receipt) {
         const blob = new Blob([JSON.stringify(data.receipt, null, 2)], { type: 'application/json' });
@@ -110,18 +112,27 @@ export const PrivacyRequestsSheet = ({ open, onOpenChange }: PrivacyRequestsShee
         a.download = `conversely-deletion-receipt-${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
+        
+        // Wait for download to trigger before cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        console.log('[PrivacyRequestsSheet] Deletion receipt download triggered');
+        toast.success('All data deleted successfully. Receipt downloaded.');
+      } else {
+        console.warn('[PrivacyRequestsSheet] No receipt in response:', data);
+        toast.success('All data deleted successfully');
       }
 
-      toast.success('All data deleted successfully');
       setShowDeleteDialog(false);
       onOpenChange(false);
       
-      // Navigate to home after short delay
+      // Navigate to home after delay to ensure download completes
       setTimeout(() => {
         navigate('/');
-      }, 2000);
+      }, 3000);
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete data');

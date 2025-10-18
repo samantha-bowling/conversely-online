@@ -84,19 +84,43 @@ const PrivacyRequests = () => {
 
     setIsDeleting(true);
     try {
-      const { error } = await supabase.functions.invoke('delete-user-data', {
+      const { data, error } = await supabase.functions.invoke('delete-user-data', {
         body: { confirmation: 'DELETE_MY_DATA' }
       });
 
       if (error) throw error;
 
-      toast.success('All data deleted successfully');
+      console.log('[PrivacyRequests] Deletion response:', data);
+
+      // Auto-download deletion receipt if available
+      if (data?.receipt) {
+        const blob = new Blob([JSON.stringify(data.receipt, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `conversely-deletion-receipt-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Wait for download to trigger before cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('[PrivacyRequests] Deletion receipt download triggered');
+        toast.success('All data deleted successfully. Receipt downloaded.');
+      } else {
+        console.warn('[PrivacyRequests] No receipt in response:', data);
+        toast.success('All data deleted successfully');
+      }
+
       setShowDeleteDialog(false);
       
-      // Navigate to home after short delay
+      // Navigate to home after delay to ensure download completes
       setTimeout(() => {
         navigate('/');
-      }, 2000);
+      }, 3000);
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('Failed to delete data');

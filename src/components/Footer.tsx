@@ -9,9 +9,10 @@ import { isWithinGracePeriod, getStoredSession } from '@/utils/sessionGracePerio
 interface FooterProps {
   variant?: 'default' | 'chat' | 'legal';
   onReportClick?: () => void;
+  onPrivacyRequestsClick?: () => void;
 }
 
-export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
+export const Footer = ({ variant = 'default', onReportClick, onPrivacyRequestsClick }: FooterProps) => {
   const { openTerms, openPrivacy, openDataRetention, LegalSheet } = useLegalSheet();
   const { session } = useSession();
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -60,12 +61,21 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
         {showManageData && (
           <>
             <span>•</span>
-            <Link 
-              to="/privacy-requests"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Manage My Data
-            </Link>
+            {onPrivacyRequestsClick ? (
+              <button
+                onClick={onPrivacyRequestsClick}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Manage My Data
+              </button>
+            ) : (
+              <Link 
+                to="/privacy-requests" 
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Manage My Data
+              </Link>
+            )}
           </>
         )}
         <span>•</span>

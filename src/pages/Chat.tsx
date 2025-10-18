@@ -31,6 +31,7 @@ import { Info } from "lucide-react";
 import type { SendMessageResponse, EndChatResponse, BlockUserResponse } from '@/types';
 import { Footer } from "@/components/Footer";
 import { QuickReportSheet } from "@/components/QuickReportSheet";
+import { PrivacyRequestsSheet } from "@/components/PrivacyRequestsSheet";
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ const Chat = () => {
   const [showNewMatchDialog, setShowNewMatchDialog] = useState(false);
   const [showReflectionFromPartnerLeft, setShowReflectionFromPartnerLeft] = useState(false);
   const [showPostChatDialog, setShowPostChatDialog] = useState(false);
+  const [showPrivacySheet, setShowPrivacySheet] = useState(false);
   
   // Track component mount state for toast timing guard
   const isMounted = useRef(true);
@@ -728,11 +730,16 @@ const Chat = () => {
 
         {/* Footer Links */}
         <div className="border-t border-border py-2 px-4">
-          <Footer variant="chat" onReportClick={() => setShowReportSheet(true)} />
+          <Footer 
+            variant="chat" 
+            onReportClick={() => setShowReportSheet(true)}
+            onPrivacyRequestsClick={() => setShowPrivacySheet(true)}
+          />
         </div>
       </footer>
 
       <QuickReportSheet open={showReportSheet} onOpenChange={setShowReportSheet} />
+      <PrivacyRequestsSheet open={showPrivacySheet} onOpenChange={setShowPrivacySheet} />
     </div>
   );
 };

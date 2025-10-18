@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
 
     // Build export response
     const exportData = {
+      data_version: 'v1.0',
       session: {
         id: sessionData.id,
         username: sessionData.username,

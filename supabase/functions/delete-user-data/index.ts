@@ -148,6 +148,23 @@ Deno.serve(async (req) => {
     }
     deletedCounts.blocked_pairs = blockedCount || 0;
 
+    // 4.5. Clear references to this session in other sessions' last_matched_session_id
+    // This prevents FK constraint violations when deleting the session
+    const { error: refError } = await supabase
+      .from('guest_sessions')
+      .update({ last_matched_session_id: null })
+      .eq('last_matched_session_id', session.id);
+
+    if (refError) {
+      console.error('[delete-user-data] Failed to clear session references:', refError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to clear session references' }),
+        { headers: securityHeaders, status: 500 }
+      );
+    }
+
+    console.log(`[delete-user-data] Cleared references to session ${session.id} in other sessions`);
+
     // 5. Delete guest session (this will CASCADE to chat_rooms via FK)
     const { error: sessionError } = await supabase
       .from('guest_sessions')
@@ -192,6 +209,12 @@ Deno.serve(async (req) => {
         deleted: deletedCounts,
         jwt_revoked: jwtRevoked,
         deleted_at: new Date().toISOString(),
+        receipt: {
+          session_id: session.id,
+          action: 'data_deletion',
+          status: 'success',
+          timestamp: new Date().toISOString(),
+        }
       }),
       { headers: securityHeaders, status: 200 }
     );

@@ -4,6 +4,7 @@ import { useLegalSheet } from '@/hooks/useLegalSheet';
 import { useSession } from '@/contexts/SessionContext';
 import { Button } from '@/components/ui/button';
 import { AboutSheet } from '@/components/AboutSheet';
+import { isWithinGracePeriod, getStoredSession } from '@/utils/sessionGracePeriod';
 
 interface FooterProps {
   variant?: 'default' | 'chat' | 'legal';
@@ -14,6 +15,13 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
   const { openTerms, openPrivacy, openDataRetention, LegalSheet } = useLegalSheet();
   const { session } = useSession();
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Check if we should show data management link
+  // Show if: active session OR within grace period after expiry
+  const showManageData = session || (() => {
+    const stored = getStoredSession();
+    return stored && isWithinGracePeriod(stored.expires_at);
+  })();
 
   return (
     <>
@@ -49,7 +57,7 @@ export const Footer = ({ variant = 'default', onReportClick }: FooterProps) => {
         >
           Data Retention
         </Button>
-        {session && (
+        {showManageData && (
           <>
             <span>•</span>
             <Link 

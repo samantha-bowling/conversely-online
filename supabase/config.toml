@@ -39,6 +39,9 @@ verify_jwt = true
 [functions.submit-reflection]
 verify_jwt = true
 
+[functions.send-discord-alert]
+verify_jwt = false
+
 [functions.maintenance.schedule]
 # Cleanup expired messages every 5 minutes
 - cron = "*/5 * * * *"

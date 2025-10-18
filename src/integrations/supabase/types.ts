@@ -354,6 +354,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_health_snapshot: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_chats: number
+          active_sessions: number
+          last_cron_run: string
+          recent_messages: number
+          searching_users: number
+          users_online_now: number
+        }[]
+      }
       revoke_expired_guest_auth: {
         Args: Record<PropertyKey, never>
         Returns: undefined

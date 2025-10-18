@@ -287,4 +287,17 @@ git push origin main
 
 ---
 
+## Shadow Mode Sunset
+
+**Sunset Date:** [30 days after public launch]  
+**Rationale:** Message queue verified, deduplication metrics stable
+
+**Actions on Sunset Date:**
+- [ ] Review final deduplication metrics (target: <0.1% collision rate)
+- [ ] Remove shadow mode logging from `send-message` edge function
+- [ ] Keep client-side queue active (proven reliability)
+- [ ] Archive shadow mode telemetry for future reference
+
+---
+
 **Next Review Date**: 2025-10-19 (48 hours post-activation)

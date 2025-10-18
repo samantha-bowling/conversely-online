@@ -16,6 +16,7 @@ import DataRetention from "./pages/DataRetention";
 import PrivacyRequests from "./pages/PrivacyRequests";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
+import AdminHealth from "./pages/AdminHealth";
 
 const App = () => (
   <SessionProvider>
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/data-retention" element={<DataRetention />} />
             <Route path="/privacy-requests" element={<PrivacyRequests />} />
             <Route path="/report" element={<Report />} />
+            <Route path="/admin/health" element={<AdminHealth />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

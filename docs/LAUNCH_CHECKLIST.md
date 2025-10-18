@@ -492,6 +492,36 @@ ORDER BY blocked_count DESC;
 
 ---
 
+## Pre-Launch Verification (Health Monitoring)
+
+### Health Monitoring
+- [ ] Admin health dashboard accessible at `/admin/health`
+- [ ] Password works (`CONVERSELY_HEALTH_2025`)
+- [ ] All 5 metrics display correctly
+- [ ] Discord webhook configured (`DISCORD_WEBHOOK_URL` secret)
+- [ ] Test Discord alert sent successfully
+- [ ] Bookmark `/admin/health` for daily checks
+
+### Message Queue Verification
+- [ ] Offline queuing test passed
+- [ ] Deduplication test passed
+- [ ] Persistence across tab closure verified
+- [ ] Max retry behavior confirmed
+- [ ] localStorage quota fallback works
+
+### Manual Testing
+- [ ] Critical path test completed (see `TEST_CHECKLIST.md`)
+- [ ] No P0 blockers detected
+- [ ] Test results documented
+
+### Operational Readiness
+- [ ] Alert contact configured: hello@conversely.online
+- [ ] Daily health check reminder working (9 AM PT)
+- [ ] Keyboard shortcut 'r' refreshes dashboard
+- [ ] Last cron run indicator working
+
+---
+
 ## Sign-Off Checklist
 
 Before marking launch-ready, confirm all items below:

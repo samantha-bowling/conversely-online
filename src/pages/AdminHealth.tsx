@@ -103,6 +103,7 @@ export default function AdminHealth() {
       }
 
       if (logsData && logsData.length > 0) {
+        // @ts-ignore - total_count will be available after DB migration
         setTotalLogCount(logsData[0].total_count || 0);
       }
       setLogs(logsData || []);

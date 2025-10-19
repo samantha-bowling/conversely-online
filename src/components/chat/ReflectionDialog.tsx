@@ -58,7 +58,12 @@ export const ReflectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby="reflection-description" className="sm:max-w-md">
+      <DialogContent 
+        aria-describedby="reflection-description" 
+        className="sm:max-w-md [&>button:last-child]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>How was your conversation?</DialogTitle>
           <DialogDescription id="reflection-description">

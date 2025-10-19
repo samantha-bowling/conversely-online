@@ -62,6 +62,23 @@ const Chat = () => {
   // Track component mount state for toast timing guard
   const isMounted = useRef(true);
 
+  // Safety net handlers for ReflectionDialog - ensures navigation even if dialog closes unexpectedly
+  const handleReflectionDialogChange = (open: boolean) => {
+    if (!open) {
+      console.log('[Chat] ReflectionDialog closed unexpectedly - redirecting to PostChatDialog');
+      setShowReflectionDialog(false);
+      setShowPostChatDialog(true);
+    }
+  };
+
+  const handlePartnerLeftReflectionChange = (open: boolean) => {
+    if (!open) {
+      console.log('[Chat] PartnerLeft ReflectionDialog closed unexpectedly - redirecting to PostChatDialog');
+      setShowReflectionFromPartnerLeft(false);
+      setShowPostChatDialog(true);
+    }
+  };
+
   // Message queue for reliable delivery
   const { enqueueMessage, queuedCount, isProcessing: isQueueProcessing } = useMessageQueue(
     session?.id || '',
@@ -574,7 +591,7 @@ const Chat = () => {
       {/* Reflection Dialog - User-initiated end */}
       <ReflectionDialog
         open={showReflectionDialog}
-        onOpenChange={setShowReflectionDialog}
+        onOpenChange={handleReflectionDialogChange}
         onSubmit={handleReflectionSubmit}
         onSkip={handleReflectionSkip}
       />
@@ -582,7 +599,7 @@ const Chat = () => {
       {/* Reflection Dialog - Partner left (optional) */}
       <ReflectionDialog
         open={showReflectionFromPartnerLeft}
-        onOpenChange={setShowReflectionFromPartnerLeft}
+        onOpenChange={handlePartnerLeftReflectionChange}
         onSubmit={handlePartnerLeftReflectionSubmit}
         onSkip={handlePartnerLeftReflectionSkip}
       />

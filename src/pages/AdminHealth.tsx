@@ -18,7 +18,6 @@ interface MaintenanceLog {
   would_close_count: number;
   closed_count: number;
   safety_clamp_triggered: boolean;
-  total_count?: number; // Optional since only first row has it
 }
 
 const HEALTH_CHECK_KEY = 'conversely_last_health_check';
@@ -95,18 +94,23 @@ export default function AdminHealth() {
 
       setMetrics(healthData?.[0] || null);
 
-      // Query 2: Maintenance logs (via RPC to bypass RLS)
-      const { data: logsData, error: logsError } = await supabase.rpc('get_maintenance_logs', { _limit: 10 });
-      
-      if (logsError) {
-        console.error('Failed to load maintenance logs:', logsError);
+      // Query 2: Fetch logs and total count in parallel
+      const [logsResult, countResult] = await Promise.all([
+        supabase.rpc('get_maintenance_logs', { _limit: 10 }),
+        supabase.from('maintenance_logs').select('*', { count: 'exact', head: true })
+      ]);
+
+      if (logsResult.error) {
+        console.error('Failed to load maintenance logs:', logsResult.error);
+      } else {
+        setLogs(logsResult.data || []);
       }
 
-      if (logsData && logsData.length > 0) {
-        // @ts-ignore - total_count will be available after DB migration
-        setTotalLogCount(logsData[0].total_count || 0);
+      if (countResult.error) {
+        console.error('Failed to load log count:', countResult.error);
+      } else {
+        setTotalLogCount(countResult.count || 0);
       }
-      setLogs(logsData || []);
       setLastRefresh(new Date());
       
       // Update last check timestamp

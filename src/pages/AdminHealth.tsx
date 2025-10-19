@@ -18,6 +18,7 @@ interface MaintenanceLog {
   would_close_count: number;
   closed_count: number;
   safety_clamp_triggered: boolean;
+  total_count?: number; // Optional since only first row has it
 }
 
 const HEALTH_CHECK_KEY = 'conversely_last_health_check';
@@ -32,6 +33,7 @@ export default function AdminHealth() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [authenticated, setAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [totalLogCount, setTotalLogCount] = useState<number>(0);
 
   // Check password on mount
   useEffect(() => {
@@ -100,6 +102,9 @@ export default function AdminHealth() {
         console.error('Failed to load maintenance logs:', logsError);
       }
 
+      if (logsData && logsData.length > 0) {
+        setTotalLogCount(logsData[0].total_count || 0);
+      }
       setLogs(logsData || []);
       setLastRefresh(new Date());
       
@@ -333,7 +338,9 @@ export default function AdminHealth() {
 
       {/* Maintenance Logs */}
       <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Maintenance Jobs (Last 10)</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Maintenance Jobs (Last 10{totalLogCount > 0 ? ` of ${totalLogCount.toLocaleString()} total` : ''})
+        </h2>
         <div className="space-y-2">
           {logs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No maintenance logs yet</p>
@@ -386,14 +393,6 @@ export default function AdminHealth() {
           >
             Refresh Now <span className="text-xs text-muted-foreground ml-2">(or press 'r')</span>
           </button>
-          <a
-            href={`https://supabase.com/dashboard/project/${import.meta.env.VITE_SUPABASE_PROJECT_ID}/logs`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-          >
-            View Logs →
-          </a>
         </div>
       </Card>
 

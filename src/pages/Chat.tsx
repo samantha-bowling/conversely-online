@@ -58,6 +58,7 @@ const Chat = () => {
   const [showReflectionFromPartnerLeft, setShowReflectionFromPartnerLeft] = useState(false);
   const [showPostChatDialog, setShowPostChatDialog] = useState(false);
   const [showPrivacySheet, setShowPrivacySheet] = useState(false);
+  const [showEndChatConfirmation, setShowEndChatConfirmation] = useState(false);
   
   // Track component mount state for toast timing guard
   const isMounted = useRef(true);
@@ -293,9 +294,14 @@ const Chat = () => {
     await enqueueMessage(roomId, messageText);
   };
 
-  const handleEndChat = async () => {
+  const handleEndChatClick = () => {
+    setShowEndChatConfirmation(true);
+  };
+
+  const handleEndChatConfirm = async () => {
     if (!roomId || !session || isEndingChat) return;
 
+    setShowEndChatConfirmation(false);
     setIsUserInitiatedEnd(true);
     setIsEndingChat(true);
 
@@ -624,6 +630,37 @@ const Chat = () => {
         </DialogContent>
       </Dialog>
 
+      {/* End Chat Confirmation Dialog */}
+      <Dialog open={showEndChatConfirmation} onOpenChange={setShowEndChatConfirmation}>
+        <DialogContent 
+          className="sm:max-w-md"
+          aria-describedby="end-chat-description"
+        >
+          <DialogHeader>
+            <DialogTitle>End this conversation?</DialogTitle>
+            <DialogDescription id="end-chat-description">
+              This will end the chat for both you and {partnerUsername || "your partner"}. 
+              You'll be asked to share a quick reflection afterwards.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="ghost"
+              onClick={() => setShowEndChatConfirmation(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleEndChatConfirm}
+              disabled={isEndingChat}
+            >
+              Yes, end chat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Post-Chat Dialog - handles both user-ended and partner-left */}
       <PostChatDialog
         open={showPostChatDialog}
@@ -650,7 +687,7 @@ const Chat = () => {
         onShowPrompt={handleShowPrompt}
         onReport={handleReport}
         onNewMatch={() => setShowNewMatchDialog(true)}
-        onEndChat={handleEndChat}
+        onEndChat={handleEndChatClick}
       />
 
       <ConnectionStatusBanner status={connectionStatus} />

@@ -29,10 +29,16 @@ export const PostChatDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md animate-fade-in">
+      <DialogContent 
+        className="sm:max-w-md animate-fade-in"
+        aria-describedby="post-chat-description"
+      >
         <DialogHeader>
           <DialogTitle className="text-2xl">{title}</DialogTitle>
-          <DialogDescription className="text-base pt-2">
+          <DialogDescription 
+            id="post-chat-description"
+            className="text-base pt-2"
+          >
             {description}
           </DialogDescription>
         </DialogHeader>

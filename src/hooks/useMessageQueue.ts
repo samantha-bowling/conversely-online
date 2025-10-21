@@ -24,7 +24,7 @@ interface QueuedMessage {
 }
 
 interface TelemetryEvent {
-  event: 'queue_enqueued' | 'queue_retry' | 'queue_success' | 'queue_drop' | 'queue_reconnect';
+  event: 'queue_enqueued' | 'queue_retry' | 'queue_success' | 'queue_drop' | 'queue_reconnect' | 'queue_room_ended';
   clientId: string;
   roomId?: string;
   attempt?: number;
@@ -183,6 +183,23 @@ export const useMessageQueue = (
 
       } catch (error) {
         console.error('[MessageQueue] Send failed:', error);
+        
+        // Check if room ended while offline
+        if (error instanceof Error && error.message === 'ROOM_ENDED') {
+          // Don't retry - room is closed
+          setQueue(prev => prev.filter(msg => msg.timestamp !== message.timestamp));
+          
+          logTelemetry({
+            event: 'queue_room_ended',
+            clientId: message.clientId,
+            roomId: message.roomId,
+            timestamp: Date.now(),
+          });
+          
+          console.log('[MessageQueue] Message discarded - room ended while offline');
+          toast.info('The chat ended while you were offline', { duration: 3000 });
+          continue; // Skip to next message
+        }
         
         // Retry logic
         if (message.retryCount < MAX_RETRIES) {

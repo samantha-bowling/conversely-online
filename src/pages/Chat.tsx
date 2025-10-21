@@ -84,6 +84,11 @@ const Chat = () => {
   const { enqueueMessage, queuedCount, isProcessing: isQueueProcessing } = useMessageQueue(
     session?.id || '',
     async (roomId, content, clientId) => {
+      // Pre-send validation: Check if room is still active
+      if (roomStatus !== 'active') {
+        throw new Error('ROOM_ENDED');
+      }
+      
       const { data, error } = await supabase.functions.invoke('send-message', {
         body: {
           room_id: roomId,

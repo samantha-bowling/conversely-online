@@ -215,11 +215,9 @@ const Chat = () => {
     };
 
     window.visualViewport.addEventListener('resize', adjustFooter);
-    window.visualViewport.addEventListener('scroll', adjustFooter);
     
     return () => {
       window.visualViewport.removeEventListener('resize', adjustFooter);
-      window.visualViewport.removeEventListener('scroll', adjustFooter);
     };
   }, []);
 

@@ -40,21 +40,16 @@ export const ChatInput = ({
     if (!input) return;
 
     const handleFocus = () => {
-      // Use visualViewport to detect actual keyboard height
-      const keyboardOffset = window.visualViewport?.height
-        ? window.innerHeight - window.visualViewport.height
-        : 0;
+      // Check if input is actually out of view before scrolling
+      const rect = input.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const isObscured = rect.bottom > viewportHeight || rect.top < 0;
       
-      // Adaptive timing based on keyboard presence
-      const delay = keyboardOffset > 0 ? 250 : 300;
-      
-      setTimeout(() => {
-        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Additional scroll if keyboard detected
-        if (keyboardOffset > 0) {
-          window.scrollBy(0, keyboardOffset);
-        }
-      }, delay);
+      if (isObscured) {
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 200);
+      }
     };
 
     input.addEventListener('focus', handleFocus);

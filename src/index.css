@@ -265,7 +265,7 @@
 @media (max-width: 768px) {
   #root {
     min-height: 100vh;
-    /* Removed overflow-y: auto to prevent nested scroll conflict */
+    height: 100vh;
   }
 
   /* Ensures space for keyboard when input focused */
@@ -273,9 +273,18 @@
     scroll-margin-bottom: 120px;
   }
   
-  /* Prevent iOS Safari pull-to-refresh on main chat area */
+  /* Improve scroll performance and prevent conflicts */
   main {
-    overscroll-behavior: none;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  
+  /* Messages container should be scrollable independently */
+  .space-y-4 {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
 }

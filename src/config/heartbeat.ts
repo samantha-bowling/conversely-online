@@ -20,10 +20,10 @@ export const HEARTBEAT_INTERVAL_MS = 15000;
 export const MATCH_HEARTBEAT_TTL_MS = 15000;
 
 /**
- * Chat allows 30 second grace period for disconnect detection
+ * Chat allows 20 second grace period for disconnect detection
  * Used in: check_partner_heartbeat DB function
  */
-export const CHAT_HEARTBEAT_TTL_MS = 30000;
+export const CHAT_HEARTBEAT_TTL_MS = 20000;
 
 /**
  * Activity counts require 15 second freshness

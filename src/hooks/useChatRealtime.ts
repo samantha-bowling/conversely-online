@@ -492,7 +492,7 @@ export const useChatRealtime = (roomId: string): UseChatRealtimeReturn => {
       } finally {
         isPollingRef.current = false;
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(pollInterval);
   }, [roomId, sessionId, roomStatus, connectionStatus]);

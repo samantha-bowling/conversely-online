@@ -273,18 +273,11 @@
     scroll-margin-bottom: 120px;
   }
   
-  /* Improve scroll performance and prevent conflicts */
+  /* Single scroll container - main element only */
   main {
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-  }
-  
-  /* Messages container should be scrollable independently */
-  .space-y-4 {
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
   }
 }

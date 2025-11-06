@@ -41,16 +41,3 @@ verify_jwt = true
 
 [functions.send-discord-alert]
 verify_jwt = false
-
-[functions.maintenance.schedule]
-# Cleanup expired messages every 5 minutes
-- cron = "*/5 * * * *"
-  endpoint = "/functions/v1/maintenance?task=cleanup_expired_messages"
-
-# Cleanup expired sessions every hour
-- cron = "0 * * * *"
-  endpoint = "/functions/v1/maintenance?task=cleanup_expired_sessions"
-
-# Close inactive rooms every 5 minutes
-- cron = "*/5 * * * *"
-  endpoint = "/functions/v1/maintenance?task=close_inactive_rooms"

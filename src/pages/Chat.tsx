@@ -204,6 +204,18 @@ const Chat = () => {
     };
   }, [session?.id, roomStatus, networkOnlineStatus, isVisible]);
 
+  // Dynamic viewport height for mobile browsers
+  useEffect(() => {
+    const updateVH = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    updateVH();
+    window.addEventListener('resize', updateVH);
+    return () => window.removeEventListener('resize', updateVH);
+  }, []);
+
   // Visual viewport footer adjustment for iOS Safari
   useEffect(() => {
     const footer = document.querySelector('footer');
@@ -214,7 +226,7 @@ const Chat = () => {
       footer.style.bottom = offset > 0 ? `${offset}px` : '0px';
     };
 
-    window.visualViewport.addEventListener('resize', adjustFooter);
+    window.visualViewport.addEventListener('resize', adjustFooter, { passive: true });
     
     return () => {
       window.visualViewport.removeEventListener('resize', adjustFooter);
@@ -567,7 +579,10 @@ const Chat = () => {
   }, [roomStatus, isUserInitiatedEnd, showPostChatDialog, showReflectionDialog, showReflectionFromPartnerLeft]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div 
+      className="flex flex-col bg-background"
+      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
+    >
       {/* Skip to main content link */}
       <a 
         href="#message-input" 
@@ -717,6 +732,10 @@ const Chat = () => {
       {/* Messages */}
       <main 
         className="flex-1 overflow-y-auto" 
+        style={{
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+        }}
         role="main"
         aria-label="Chat messages"
         aria-live="polite"
@@ -753,7 +772,13 @@ const Chat = () => {
       </main>
 
       {/* Input */}
-      <footer className="sticky bottom-0 border-t border-border bg-card z-10" role="contentinfo">
+      <footer 
+        className="sticky bottom-0 border-t border-border bg-card z-10" 
+        style={{
+          paddingBottom: `max(1rem, env(safe-area-inset-bottom))`,
+        }}
+        role="contentinfo"
+      >
         <div className="p-4">
           {roomStatus === "ended" ? (
             <div className="text-center text-muted-foreground py-4">

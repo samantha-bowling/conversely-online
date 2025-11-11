@@ -40,16 +40,18 @@ export const ChatInput = ({
     if (!input) return;
 
     const handleFocus = () => {
-      // Check if input is actually out of view before scrolling
-      const rect = input.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const isObscured = rect.bottom > viewportHeight || rect.top < 0;
-      
-      if (isObscured) {
-        setTimeout(() => {
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 200);
-      }
+      requestAnimationFrame(() => {
+        // Check if input is actually out of view before scrolling
+        const rect = input.getBoundingClientRect();
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        const isObscured = rect.bottom > viewportHeight || rect.top < 0;
+        
+        if (isObscured) {
+          setTimeout(() => {
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 300);
+        }
+      });
     };
 
     input.addEventListener('focus', handleFocus);

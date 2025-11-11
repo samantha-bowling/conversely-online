@@ -259,6 +259,15 @@
   textarea:focus-visible {
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
+  
+  /* Touch action for interactive elements - prevents accidental zoom */
+  button, 
+  a, 
+  [role="button"], 
+  input[type="submit"],
+  input[type="button"] {
+    touch-action: manipulation;
+  }
 }
 
 /* Mobile keyboard handling - improved approach */

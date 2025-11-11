@@ -99,7 +99,13 @@ export const ChatHeader = ({
   };
 
   return (
-    <header className="z-10 relative border-b border-border px-3 md:px-4 py-3 bg-card" role="banner">
+    <header 
+      className="sticky top-0 z-10 border-b border-border px-3 md:px-4 py-3 bg-card" 
+      style={{
+        paddingTop: `max(0.75rem, env(safe-area-inset-top))`,
+      }}
+      role="banner"
+    >
       <div className="flex items-center justify-between gap-2 md:gap-4">
         {/* Left: Connection status + Username */}
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
@@ -142,7 +148,7 @@ export const ChatHeader = ({
                   size="sm"
                   onClick={handleDownloadTranscript}
                   aria-label="Download chat transcript"
-                  className="h-9 w-9 p-0"
+                  className="h-11 w-11 p-0"
                 >
                   <Download className="w-4 h-4" aria-hidden="true" />
                 </Button>
@@ -160,7 +166,7 @@ export const ChatHeader = ({
             onClick={onShowPrompt}
             disabled={roomStatus === "ended"}
             aria-label="Show conversation prompt"
-            className="h-9"
+            className="h-11"
           >
             <Lightbulb className="w-4 h-4 md:mr-1.5" aria-hidden="true" />
             <span className="hidden md:inline">Prompt</span>
@@ -174,7 +180,7 @@ export const ChatHeader = ({
                 size="sm"
                 disabled={roomStatus === "ended"}
                 aria-label="More actions"
-                className="h-9 w-9 p-0"
+                className="h-11 w-11 p-0"
               >
                 <MoreVertical className="w-4 h-4" aria-hidden="true" />
               </Button>
@@ -198,7 +204,7 @@ export const ChatHeader = ({
             onClick={onEndChat}
             disabled={roomStatus === "ended" || isEndingChat}
             aria-label="End conversation"
-            className="h-9"
+            className="h-11"
           >
             <span className="hidden sm:inline">{isEndingChat ? "Ending..." : "End"}</span>
             <span className="sm:hidden">End</span>

@@ -758,9 +758,6 @@ const Chat = () => {
       {/* Input */}
       <footer 
         className="sticky bottom-0 border-t border-border bg-card z-10" 
-        style={{
-          paddingBottom: `max(1rem, env(safe-area-inset-bottom))`,
-        }}
         role="contentinfo"
       >
         <div className="p-4">
@@ -795,7 +792,12 @@ const Chat = () => {
         </div>
 
         {/* Footer Links */}
-        <div className="border-t border-border py-2 px-4">
+        <div 
+          className="border-t border-border py-2 px-4"
+          style={{
+            paddingBottom: `max(0.5rem, calc(0.5rem + env(safe-area-inset-bottom)))`,
+          }}
+        >
           <Footer 
             variant="chat" 
             onReportClick={() => setShowReportSheet(true)}

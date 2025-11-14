@@ -216,22 +216,6 @@ const Chat = () => {
     return () => window.removeEventListener('resize', updateVH);
   }, []);
 
-  // Visual viewport footer adjustment for iOS Safari
-  useEffect(() => {
-    const footer = document.querySelector('footer');
-    if (!footer || !window.visualViewport) return;
-
-    const adjustFooter = () => {
-      const offset = window.innerHeight - window.visualViewport.height;
-      footer.style.bottom = offset > 0 ? `${offset}px` : '0px';
-    };
-
-    window.visualViewport.addEventListener('resize', adjustFooter, { passive: true });
-    
-    return () => {
-      window.visualViewport.removeEventListener('resize', adjustFooter);
-    };
-  }, []);
 
   // Send final heartbeat attempt on tab close (Defense in Depth)
   useEffect(() => {

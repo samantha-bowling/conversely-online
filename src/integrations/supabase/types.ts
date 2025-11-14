@@ -338,24 +338,12 @@ export type Database = {
           partner_session_id: string
         }[]
       }
-      cleanup_expired_messages: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_maintenance_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      close_inactive_rooms: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_expired_messages: { Args: never; Returns: undefined }
+      cleanup_expired_sessions: { Args: never; Returns: undefined }
+      cleanup_old_maintenance_logs: { Args: never; Returns: undefined }
+      close_inactive_rooms: { Args: never; Returns: undefined }
       get_health_snapshot: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_chats: number
           active_sessions: number
@@ -376,10 +364,7 @@ export type Database = {
           would_close_count: number
         }[]
       }
-      revoke_expired_guest_auth: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      revoke_expired_guest_auth: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

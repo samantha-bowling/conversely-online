@@ -793,9 +793,9 @@ const Chat = () => {
 
         {/* Footer Links */}
         <div 
-          className="border-t border-border py-2 px-4"
+          className="border-t border-border pt-2 px-4"
           style={{
-            paddingBottom: `max(0.5rem, calc(0.5rem + env(safe-area-inset-bottom)))`,
+            paddingBottom: `max(0.5rem, env(safe-area-inset-bottom))`,
           }}
         >
           <Footer 

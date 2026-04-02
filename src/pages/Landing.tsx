@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
-import { ConversationButton } from "@/components/ConversationButton";
-import { ActivityIndicator } from "@/components/ActivityIndicator";
-import { useNavigate, useLocation } from "react-router-dom";
-import { AgeGate } from "@/components/AgeGate";
-import { hasSeenAgeGate, needsReAcceptance } from "@/utils/legalAcceptance";
+import { useLocation, Link } from "react-router-dom";
 import converselyBanner from "@/assets/conversely-banner-transparent.png";
 import { Footer } from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
-import type { ActivityLevel } from "@/types";
 
 const Landing = () => {
   const navigate = useNavigate();

@@ -74,10 +74,17 @@ export const AboutSheet = ({ open, onOpenChange }: AboutSheetProps) => {
             </p>
           </div>
 
-          <div className="pt-4 border-t border-border/40">
-            <p className="text-sm text-muted-foreground text-center">
-              Ready to start a conversation?
+          <div className="pt-4 border-t border-border/40 text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Conversely is no longer active, but you can read the full story.
             </p>
+            <Link 
+              to="/case-study" 
+              className="text-sm font-semibold text-primary hover:underline"
+              onClick={() => onOpenChange(false)}
+            >
+              Read the Technical Case Study →
+            </Link>
           </div>
         </div>
       </SheetContent>

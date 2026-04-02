@@ -17,6 +17,7 @@ import PrivacyRequests from "./pages/PrivacyRequests";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
 import AdminHealth from "./pages/AdminHealth";
+import CaseStudy from "./pages/CaseStudy";
 
 const App = () => (
   <SessionProvider>

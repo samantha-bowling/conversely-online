@@ -59,6 +59,13 @@ export const Footer = ({ variant = 'default', onReportClick, onPrivacyRequestsCl
         >
           Data Retention
         </Button>
+        <span>•</span>
+        <Link 
+          to="/case-study" 
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Case Study
+        </Link>
         {showManageData && (
           <>
             <span>•</span>

@@ -91,40 +91,18 @@ const Landing = () => {
         </div>
 
         <div className="pt-6 space-y-4">
-          <ConversationButton 
-            variant="primary" 
-            onClick={handleStartClick}
-            aria-label="Start conversation - find someone with different views"
-          >
-            Let's Get Started
-          </ConversationButton>
-
-          {!activityLevel ? (
-            <button
-              onClick={checkActivity}
-              disabled={checkingActivity}
-              className="text-sm font-bold underline hover:no-underline text-foreground/80 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Check current activity level on the platform"
-            >
-              {checkingActivity ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-                  <span className="sr-only">Checking activity level...</span>
-                  Checking...
-                </span>
-              ) : (
-                'Check Activity'
-              )}
-            </button>
-          ) : (
-            <div className="flex justify-center">
-              <ActivityIndicator activityLevel={activityLevel} variant="full" />
-            </div>
-          )}
+          <div className="bg-muted/30 border border-border/50 rounded-lg px-6 py-4 text-center">
+            <p className="text-muted-foreground text-sm">
+              Conversely is no longer active. Thank you for being part of it. 💛
+            </p>
+          </div>
           
-          <p className="text-sm text-muted-foreground">
-            Takes less than 5 minutes
-          </p>
+          <Link
+            to="/case-study"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline transition-colors"
+          >
+            Read the Story Behind Conversely →
+          </Link>
         </div>
         </div>
       </div>
